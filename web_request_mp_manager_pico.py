@@ -300,6 +300,17 @@ class WebRequestMPManager:
                       record_chunk_size: int,
                       is_bgn: bool,
                       is_end: bool):
+        '''
+        Args:
+            bytes_frames: bytes, audio data
+            frames_size: int, audio data size
+            record_chunk_size: int, audio data chunk size
+            is_bgn: bool, is begin of stream
+            is_end: bool, is end of stream
+        
+        Returns:
+            bool, if stream reset status
+        '''
         if len(bytes_frames) == 0:
             return False
         if frames_size*record_chunk_size >= self.min_stream_record_time*self.RATE or is_end:
@@ -337,7 +348,13 @@ class WebRequestMPManager:
                              audio_play_queue,
                              emo_display_queue, 
                              share_time_dict):
-            
+        '''
+        Args:
+            client_queue: multiprocessing.Queue, client queue
+            audio_play_queue: multiprocessing.Queue, audio play queue
+            emo_display_queue: multiprocessing.Queue, emo display queue
+            share_time_dict: multiprocessing.Manager.dict, shared time dict
+        '''
         from takway.client_utils import CharacterClient
         character = self.server_args.pop('character')
         client = CharacterClient(**self.server_args)
@@ -388,6 +405,14 @@ class WebRequestMPManager:
                             audio_play_queue=None,
                             emo_display_queue=None, 
                             chunk_size=1024):
+        '''
+        Args:
+            client: takway.client_utils.CharacterClient, client object
+            response: requests.Response, response object
+            audio_play_queue: multiprocessing.Queue, audio play queue
+            emo_display_queue: multiprocessing.Queue, emo display queue
+            chunk_size: int, chunk size
+        '''
         assert isinstance(response, requests.Response), \
             f"response is not requests.Response, but {type(response)}"
         
@@ -417,13 +442,13 @@ class WebRequestMPManager:
                     if temp_json['is_end']:
                         client.update_chat_history(question=temp_json['chat_output']['question'],
                             response=chat_llm_response, asw_prompt_id=1)
-                    print(f"chat_history: {client.chat_history}")
+                    # print(f"chat_history: {client.chat_history}")
                     if _i == 1:
                         emo_display_queue.put(('emo_data', '高兴'))
                 except json.JSONDecodeError:
                     print(f"json decode error: {temp_data}")
                 temp_data = ''
-                print("get response.")
+                # print("get response.")
         print("End get response.")
             
             
@@ -431,6 +456,11 @@ class WebRequestMPManager:
     def audio_play_process(self, 
                            audio_play_queue, 
                            share_time_dict):
+        '''
+        Args:
+            audio_play_queue: multiprocessing.Queue, audio play queue
+            share_time_dict: multiprocessing.Manager.dict, shared time dict
+        '''
         from takway.audio_utils import AudioPlayer
         audio_player = AudioPlayer()
         self.logger.info("Audio play process started.")
@@ -447,6 +477,10 @@ class WebRequestMPManager:
 
 
     def emo_display_process(self, emo_display_queue):
+        '''
+        Args:
+            emo_display_queue: multiprocessing.Queue, emo display queue
+        '''
         from takway.emo_utils import EmoVideoPlayer
         emo_player = EmoVideoPlayer(**self.emo_args)
         self.logger.info("Emo display process started.")
@@ -473,7 +507,6 @@ if __name__ == '__main__':
     
     try:
         import gpiod as gpio
-        # model_path="vosk-model-small-cn-0.22"
         emo_dir="ResizedEmoji"
         
         

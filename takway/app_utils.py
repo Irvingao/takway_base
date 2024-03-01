@@ -137,9 +137,9 @@ class TakwayApp:
 
         spark_api.init_websocket()
         
-        get_response_thread = threading.Thread(target=self.get_stream_response_thread, args=(spark_api,)).start()
-        
         self.stream_data_queue = queue.Queue()
+        
+        get_response_thread = threading.Thread(target=self.get_stream_response_thread, args=(spark_api,)).start()
         
         while True:
             try:
