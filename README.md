@@ -1,19 +1,19 @@
 Takway.AI
 =========
 
-### 面向角色扮演功能的多模态交互系统 [[飞书Link](https://lleeei6t29.feishu.cn/docx/BzVWd57K9oyVSixhTamcv4tSnHf)]
+### 🎃面向角色扮演功能的多模态交互系统🤖 [[飞书Link](https://lleeei6t29.feishu.cn/docx/BzVWd57K9oyVSixhTamcv4tSnHf)]
 
-- 前端：基于Linux端侧平台的语音、视觉交互系统，可以实现语音唤醒、语音输入、语音播放、表情互动等功能。其中语音输入框架如图所示：
+- 🦾前端：基于Linux端侧平台的语音、视觉交互系统，可以实现语音唤醒、语音输入、语音播放、表情互动等功能。其中语音输入框架如图所示：
 
 ![前端](docs/images/frontend-audio-pipeline.png)
 
-- 后端：基于Python Flask框架的后端语音识别服务，可以实现流式语音识别、大模型流式生成、流式语音合成等功能。后端多进程框架如下图所示：
+- 🖲️后端：基于Python Flask框架的后端语音识别服务，可以实现流式语音识别、大模型流式生成、流式语音合成等功能。后端多进程框架如下图所示：
 
 ![后端](docs/images/backend-framework.png)
 
 ---
 
-### 项目更新日志
+### 📆项目更新日志
 
 - **2024.2.16**：
   完成本地Client段基本架构设计
@@ -56,22 +56,21 @@ Takway.AI
   1. 调试并确认完成前后端通信数据格式；
   2. 初步确认大模型角色扮演系统运行。
 - **2024.3.1**：
-  1. 项目发布！
+  1. 项目发布🔥🔥🔥🚀🚀🚀！
 
 ---
 
-### 功能支持
+### 📌功能支持
 
-- [x] 前端语音唤醒
-- [x] 后端全流式流式生成
+- ✅ 前端语音唤醒
+- ✅ 后端全流式流式生成
 
-- [ ] 高并发后端设计
-- [ ] 高性能ASR模型
-- [ ] 国内大模型Role-playing Benchmarking
+- 🟥 高并发后端设计
+- 🟥 高性能ASR模型
+- 🟥 国内大模型Role-playing Benchmarking
 
-## 安装和运行：
+## 🖥️安装和运行：
 
-============
 
 1. 克隆项目到本地：
 
@@ -99,10 +98,8 @@ Takway.AI
 
    - Vosk语音识别模型：[vosk-model-cn-0.22.zip](https://alphacephei.com/vosk/models/vosk-model-cn-0.22.zip)
    - VITS语音合成模型：[vits-uma-genshin-honkai](https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai/tree/main)
-4. 配置星火大模型的API：
 
-   - `main.py`中的 `appid`、`api_secret`、`api_key`，参考：[快速指引](https://www.xfyun.cn/doc/platform/quickguide.html#%E7%AC%AC%E4%B8%80%E6%AD%A5-%E6%B3%A8%E5%86%8C%E6%88%90%E4%B8%BA%E5%BC%80%E5%8F%91%E8%80%85)。
-5. 运行项目：
+4. 运行项目：
 
 - 前端(Linux板卡端)：
   ```
@@ -113,11 +110,11 @@ Takway.AI
   python app.py
   ```
 
-### 人物列表
+### 🤓人物列表
 
 - 可以通过脚本查看人物的序号:
   ```
-  python list_characters.py
+  python tools/list_characters.py
   ```
 
 ```
