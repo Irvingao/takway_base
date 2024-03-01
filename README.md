@@ -1,15 +1,15 @@
 Takway.AI
 =========
 
-### 面向角色扮演功能的多模态交互系统
+### 面向角色扮演功能的多模态交互系统 [[飞书Link](https://lleeei6t29.feishu.cn/docx/BzVWd57K9oyVSixhTamcv4tSnHf)]
 
 - 前端：基于Linux端侧平台的语音、视觉交互系统，可以实现语音唤醒、语音输入、语音播放、表情互动等功能。其中语音输入框架如图所示：
 
-![前端](docs\images\frontend-audio-pipeline.png)
+![前端](docs/images/frontend-audio-pipeline.png)
 
 - 后端：基于Python Flask框架的后端语音识别服务，可以实现流式语音识别、大模型流式生成、流式语音合成等功能。后端多进程框架如下图所示：
 
-![后端](docs\images\backend-framework.png)
+![后端](docs/images/backend-framework.png)
 
 ---
 
