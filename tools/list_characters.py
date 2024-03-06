@@ -1,6 +1,6 @@
-from vits import tts_model_init
+from takway.vits_utils import tts_model_init
 
-hps_ms, device, speakers, net_g_ms, limitation = tts_model_init(device='cpu')
+hps_ms, device, speakers = tts_model_init(device='cuda')
 
 for i, character in enumerate(speakers):
     print(f"{i}: {character}")
