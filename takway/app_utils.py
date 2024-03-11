@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, send_file, Response
+from flask import Flask, request, Response
 
 from .common_utils import *
 from .vosk_utils import VOSKAutoSpeechRecognizer
@@ -10,7 +10,6 @@ from .apps.data_struct import *
 
 import websocket  # 使用websocket_client
 
-
 import time
 import json
 import base64
@@ -19,46 +18,56 @@ import threading
 import multiprocessing
 
 app = Flask(__name__)
+
 class TakwayApp:
     def __init__(self, 
                  app,
-                #  vosk_model_path='vosk-model-small-cn-0.22',
-                 vosk_model_path='vosk-model-cn-0.22',
-                 vits_model_path='vits-small-patch16-22k-v2',
-                 sample_rate=16000,
                  stream_timeout=10,
                  device='cuda',
                  debug=False,
-                 spark_cfg=None,
+                 asr_cfg=None,
+                 tts_cfg=None,
+                 llm_cfg=None,
                  **kwargs):
         super().__init__(**kwargs)
         
         self.debug = debug
         self.stream_timeout = stream_timeout
 
-        self.vosk_cfg = {
-            'model_path': vosk_model_path,
-            'RATE': sample_rate,
-            'efficent_mode': True,
-            'debug': debug,
-        }
+        self.asr_cfg = self._init_asr_cfg(asr_cfg)
 
-        self.spark_cfg = spark_cfg
-        self.spark_cfg['stream_timeout'] = stream_timeout
-        self.spark_cfg['debug'] = True
+        self.llm_cfg = self._init_llm_cfg(llm_cfg)
         
-        self.vits_cfg = {
-           'model_path': vits_model_path,
-            'device': device,
-            'debug': debug,
-        }
+        self.tts_cfg = self._init_tts_cfg(tts_cfg)
         
         self.process_init()
     
-    def start_app(self, app):
-        app.run(host='0.0.0.0', port=5000, debug=self.debug)
+    def _init_asr_cfg(self, asr_cfg):
+        assert 'model_path' in asr_cfg, "asr_cfg must contain model_path"
+        assert 'RATE' in asr_cfg, "asr_cfg must contain RATE"
+        asr_cfg['debug'] = self.debug
+        return asr_cfg
+    
+    def _init_llm_cfg(self, llm_cfg):
+        assert 'api_key' in llm_cfg, "llm_cfg must contain api_key"
+        assert 'api_secret' in llm_cfg, "llm_cfg must contain api_secret"
+        llm_cfg['stream_timeout'] = self.stream_timeout
+        llm_cfg['debug'] = self.debug
+        return llm_cfg
+    
+    def _init_tts_cfg(self, tts_cfg):
+        assert'model_path' in tts_cfg, "tts_cfg must contain model_path"
+        assert 'device' in tts_cfg, "tts_cfg must contain device"
+        tts_cfg['debug'] = self.debug
+        return tts_cfg
+    
+    def start_app(self, app, port=5000, **kwargs):
+        app.run(host='0.0.0.0', port=5000, debug=self.debug, **kwargs)
     
     def process_init(self):
+        '''
+        init three processes for auto speech recognition, llm chat, and text to speech.
+        '''
         # multiprocessing
         manager = multiprocessing.Manager()
         self.stt_queue = manager.Queue()
@@ -73,7 +82,12 @@ class TakwayApp:
 
     
     def stream_stt_process(self):
-        vosk_asr = VOSKAutoSpeechRecognizer(**self.vosk_cfg)
+        '''
+        流式语音识别进程
+        
+        流式接收来自前端的语音数据，进行流式语音识别，并将识别的文字结果放入队列中，供后续处理。
+        '''
+        vosk_asr = VOSKAutoSpeechRecognizer(**self.asr_cfg)
         
         print("stream_stt_process start")
         stt_texts = []
@@ -82,10 +96,10 @@ class TakwayApp:
             data = self.stt_queue.get()
             print("Recieved stream audio data!")
             
-            bg_t = time.time()
+            # bg_t = time.time()
             audio_data = decode_str2bytes(data['audio_input'].pop('data'))
             audio_text = self.process_stt(vosk_asr, audio_data)
-            print(f"process audio data time: {(time.time() - bg_t)*1000:.2f} ms")
+            # print(f"process audio data time: {(time.time() - bg_t)*1000:.2f} ms")
             stt_texts.append(audio_text)
 
             if data.pop('is_bgn'):
@@ -131,9 +145,15 @@ class TakwayApp:
             
         return asr_str
         
-    def stream_chat_process(self):  
+    def stream_chat_process(self):
+        '''
+        大模型对话进程
+        
+        接收来自语音识别文本结果，送入大模型对话，并将对话结果放入队列中，供后续处理。
+        '''
+        
         print("stream_chat_process start")
-        spark_api = SparkRolyPlayingClient(**self.spark_cfg)
+        spark_api = SparkRolyPlayingClient(**self.llm_cfg)
 
         spark_api.init_websocket()
         
@@ -173,16 +193,7 @@ class TakwayApp:
                 spark_api.chat(chat_text)   # chat
                 
                 spark_api.clear_character()
-                
-                '''
-                try:
-                    spark_api.chat(chat_text)
-                except websocket.WebSocketException as e:
-                    if "403" in str(e):
-                        print("连接失败: 403 Forbidden")
-                    else:
-                        print(f"连接失败: {e}")
-                '''
+
                         
     def get_stream_response_thread(self, spark_api):
         temp_text = ''
@@ -212,7 +223,7 @@ class TakwayApp:
 
     def stream_tts_process(self):
         vits = TextToSpeech(
-            **self.vits_cfg
+            **self.tts_cfg
         )
         print("stream_tts_process start")
         while True:
@@ -288,13 +299,19 @@ class TakwayApp:
 if __name__ == "__main__":
     
     takway_app = TakwayApp(
-        vosk_model_path='vosk-model-small-cn-0.22',
-        vits_model_path='vits-small-patch16-22k-v2',
-        sample_rate=16000,
+        app=app,
         stream_timeout=10,
         device='cuda',
         debug=False,
-        spark_cfg={
+        asr_cfg={
+            'model_path': 'vosk-model-small-cn-0.22',
+            'RATE': 16000,
+        },
+        tts_cfg={
+            'model_path': 'vits-small-patch16-22k-v2',
+            'device': 'cuda',
+        },
+        llm_cfg={
             'appid': 'xxxxx',
             'api_key': 'xxxxx',
             'api_secret': 'xxxxx',
@@ -303,4 +320,4 @@ if __name__ == "__main__":
         }
     )
     
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    takway_app.start_app(host='0.0.0.0', port=5000, debug=False)

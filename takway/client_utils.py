@@ -101,7 +101,6 @@ class CharacterClient(Client, SparkRolyPlayingFunction):
         audio_data = kwargs.get("audio_data")
         chat_data = kwargs.get("chat_data", dict())
         character_data = kwargs.get("character_data")
-        print(f"chat_data: {chat_data}")
         
         is_bgn = audio_data.get("is_bgn")
         is_end = audio_data.get("is_end")
