@@ -14,6 +14,16 @@ def handle_all():
 
 if __name__ == "__main__":
     
+    asr_cfg={
+        'model_path': 'vosk-model-small-cn-0.22',
+        'RATE': 16000,
+    }
+    
+    tts_cfg={
+        'model_path': 'vits-small-patch16-22k-v2',
+        'device': 'cuda',
+    }
+    
     spark_cfg = dict(
         appid="fb646f00",    #填写控制台中获取的 APPID 信息
         api_key="f71ea3399c4d73fe3f6df093f7811a0d",    #填写控制台中获取的 APIKey 信息
@@ -23,6 +33,6 @@ if __name__ == "__main__":
         character_data_dir="characters",
     )
     
-    takway_app = TakwayApp(app, spark_cfg=spark_cfg, debug=False)
+    takway_app = TakwayApp(app, asr_cfg=asr_cfg, tts_cfg=tts_cfg, llm_cfg=spark_cfg, debug=False)
     
     takway_app.start_app(app)
