@@ -45,6 +45,14 @@ class BaseCharacterInfo:
         return self.character_data["background_infos"]
     
     @property
+    def emojis(self):
+        return self.character_data["emojis"]
+    
+    @property
+    def example_dialogues(self):
+        return self.character_data["dialogues"]
+    
+    @property
     def sys_prompt_1(self):
         return f"""我们正在角色扮演对话游戏中，你需要始终保持角色扮演并待在角色设定的情景中，你扮演的角色信息如下：\n{"角色名称: " + self.char_name}。\n{"角色背景: " + self.description}\n{"角色性格特点: " + self.personality}\n{"角色所处环境: " + self.world_scenario}\n{"角色的常用问候语: " + self.wakeup_words}。\n\n你需要用简单、通俗易懂的口语化方式进行对话，在没有经过允许的情况下，你需要保持上述角色，不得擅自跳出角色设定。\n"""
 
@@ -55,6 +63,21 @@ class BaseCharacterInfo:
     @property
     def sys_prompt_3(self):
         return f"""你好，我是{self.character_name}，我的详细信息如下: \n```{self.character_data}```。\n\n对话需要满足以下要求：\n1. 保持角色扮演，不得擅自跳出角色设定。\n2. 保持简短、通俗易懂的口语化方式进行对话。\n3. 输出内容要符合角色性格。\n4. 输出内容要符合聊天历史中未曾出现的新颖独特的信息。\n"""
+
+    @property
+    def sys_prompt_4(self):
+        sys_prompt = f"""你现在正在扮演"{self.character_name}"这一角色。我希望你模仿{self.character_name}的人格，包括知识、语言和行为方式、性格等。在角色扮演中，你需要遵守以下要求：1. 你必须始终保持角色扮演并待在角色设定的情景中，不得擅自跳出角色扮演，不得说你不知道角色相关信息或你是一个AI。\n2. 保持简短、通俗易懂的口语化方式进行对话。\n3. 为了使对话更生动，你需要在对话中添加文字形式的表情和动作，用括号包裹，比如"早上好，主人。（双手提起裙摆）"。尽可能多地使用这些表情{self.emojis}。\n\n你需要扮演的角色的信息是：{self.description}\n\n"""
+
+        dialogue_examples = f"""以下是"{self.character_name}"这一角色的一些对话，请你参考：\n\n"""
+        for i, dialogue in enumerate(self.example_dialogues):
+            dialogue_examples += f"===对话{i+1}===:\n"
+            for sentence in dialogue:
+                dialogue_examples += f"{sentence['role']}: {sentence['content']}\n"
+            dialogue_examples += "\n"
+
+        import pdb; pdb.set_trace()
+        return sys_prompt + dialogue_examples
+        
 
 
 class BaseRolyPlayingFunction:
