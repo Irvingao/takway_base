@@ -309,7 +309,7 @@ class SparkRolyPlayingClient(SparkChatClient, SparkRolyPlayingFunction):
             self.answer = ""
             if self.chat_status == "init":
                 self.set_character(character)
-                self.gen_sys_prompt(self.text, prompt_id=3)
+                self.gen_sys_prompt(self.text, prompt_id=4)
                 self.chat_status = "chating"
                 
             Input = input(f"我: ")
