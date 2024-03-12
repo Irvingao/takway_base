@@ -1,4 +1,5 @@
 # from takway.app_utils import app, TakwayApp
+import torch
 from takway.app_utils import *
 # from takway.apps.flask_app import *
 from flask import request, Response
@@ -13,15 +14,16 @@ def handle_all():
         
 
 if __name__ == "__main__":
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     asr_cfg={
-        'model_path': 'vosk-model-small-cn-0.22',
-        'RATE': 16000,
+        'model_path': 'paraformer-zh-streaming',
+        'device': device,
     }
     
     tts_cfg={
         'model_path': 'vits-small-patch16-22k-v2',
-        'device': 'cuda',
+        'device': device,
     }
     
     spark_cfg = dict(
