@@ -104,12 +104,18 @@ class FunAutoSpeechRecognizer(STTBase):
         for i in range(total_chunk_num):
             if auto_det_end:
                 is_end = i == total_chunk_num - 1
-            print(f"cut part: {i*self.chunk_partial_size}:{(i+1)*self.chunk_partial_size}, is_end: {is_end}")
+            start_idx = i*self.chunk_partial_size
+            if auto_det_end:
+                end_idx = (i+1)*self.chunk_partial_size if i < total_chunk_num-1 else -1
+            else:
+                end_idx = (i+1)*self.chunk_partial_size if i < total_chunk_num else -1
+            print(f"cut part: {start_idx}:{end_idx}, is_end: {is_end}, i: {i}, total_chunk_num: {total_chunk_num}")
             
             t_stamp = time.time()
             
-            speech_chunk = self.audio_cache[i*self.chunk_partial_size:(i+1)*self.chunk_partial_size].copy() # 创建一个可写副本
-            assert speech_chunk.flags.writeable == True, "speech_chunk should be a writable array"
+            speech_chunk = self.audio_cache[start_idx:end_idx]
+            # speech_chunk = self.audio_cache[i*self.chunk_partial_size:(i+1)*self.chunk_partial_size].copy() # 创建一个可写副本
+            # assert speech_chunk.flags.writeable == True, "speech_chunk should be a writable array"
             
             res = self.asr_model.generate(input=speech_chunk, cache=self.asr_cache, is_final=is_end, chunk_size=self.chunk_size, encoder_chunk_look_back=self.encoder_chunk_look_back, decoder_chunk_look_back=self.decoder_chunk_look_back)
             
@@ -126,7 +132,7 @@ class FunAutoSpeechRecognizer(STTBase):
             self.audio_cache = None
             self.asr_cache = {}
         else:
-            self.audio_cache = self.audio_cache[total_chunk_num*self.chunk_partial_size:] # cut the processed part from audio_cache
+            self.audio_cache = self.audio_cache[end_idx:] # cut the processed part from audio_cache
         
         # print(f"text_dict: {text_dict}")
         return text_dict

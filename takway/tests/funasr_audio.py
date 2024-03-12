@@ -10,15 +10,18 @@ def test_asr_file(file_path='my_recording.wav'):
     asr = FunAutoSpeechRecognizer()
     
     # asr.recognize(data)
+    '''
     total_chunk_num = int((len(data)-1)/rec.CHUNK+1)
     print(f"total_chunk_num: {total_chunk_num}")
     for i in range(total_chunk_num):
         is_end = i == total_chunk_num - 1
         speech_chunk = data[i*rec.CHUNK:(i+1)*rec.CHUNK]
         text_dict = asr.streaming_recognize(speech_chunk, is_end)
+    '''
+    text_dict = asr.streaming_recognize(data, is_end=True)
         
 def test_asr_microphone():
-    recorder = HDRecorder(voice_trigger=False)
+    recorder = HDRecorder(voice_trigger=False, CHUNK=3840)
     
     asr = FunAutoSpeechRecognizer(device='cpu')
     
