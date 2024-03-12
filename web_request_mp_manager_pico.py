@@ -392,6 +392,7 @@ class WebRequestMPManager:
                     self.share_time_dict['client_time'].append(time.time())
                 audio_data = queue_data[1]
                 print("send audio data to server...")
+                print(f"local chat history: {client.chat_history}")
                 yield client.gen_request_data(
                         audio_data=audio_data, 
                         chat_data=dict(
@@ -432,8 +433,6 @@ class WebRequestMPManager:
                 _i += 1
                 try:
                     temp_json = json.loads(temp_data.rstrip('\n'))
-                    # print(f"get response {_i}th: {temp_json}")
-                    
                     # phase 1: get audio data
                     audio_play_queue.put(('server_data', temp_json['audio_output']['tts_stream_data']))
                     # phase 2: get chat data
@@ -539,6 +538,7 @@ if __name__ == '__main__':
         emo_enable = False
         
     character = 'Klee_test_v2_en'
+    character = '蕾'
     # character = 'Taijian'
     
     

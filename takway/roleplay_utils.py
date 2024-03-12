@@ -6,7 +6,9 @@ class BaseCharacterInfo:
     def __init__(self, character_data_dir="character_data", character_name=""):
         self.character_data = self.load_character_cfg(character_data_dir, character_name)
         
-        self.character_name = self.character_data.pop("char_name")
+        # print(f"Loading character data for {self.character_name}...")
+        print(self.character_data)
+        
         self.character_id = self.character_data.pop("char_id")
         self.wakeup_words = self.character_data.pop("wakeup_words")
     
@@ -20,9 +22,9 @@ class BaseCharacterInfo:
     def list_keys(self):
         return list(self.character_data.keys())
     
-    # @property
-    # def character_name(self):
-    #     return self.character_data["char_name"]
+    @property
+    def character_name(self):
+        return self.character_data["char_name"]
     
     @property
     def description(self):
@@ -75,22 +77,19 @@ class BaseCharacterInfo:
                 dialogue_examples += f"{sentence['role']}: {sentence['content']}\n"
             dialogue_examples += "\n"
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         return sys_prompt + dialogue_examples
         
-
 
 class BaseRolyPlayingFunction:
     def __init__(self):
         pass
 
-    def getText(self, text, content, role='user', additional_list=None):
+    def getText(self, text, content, role='user'):
         jsoncon = {}
         jsoncon["role"] = role
         jsoncon["content"] = f"{content}"
         text.append(jsoncon)
-        if additional_list is not None:
-            additional_list.append(jsoncon)
         return text
 
     def getlength(self, text):
@@ -123,10 +122,10 @@ class SparkRolyPlayingFunction(BaseRolyPlayingFunction):
         
         self.clear_character()
 
-    def set_character(self, character):
+    def set_character(self, character, prompt_id=4, gen_sys_pmt=True):
         self.character_info = BaseCharacterInfo(self.character_data_dir, character)
         self.character = character
-        self.chat_history = []
+        self.chat_history = self.gen_sys_prompt(self.chat_history, prompt_id=prompt_id) if gen_sys_pmt else self.chat_history
         self.chat_status = 'init'
         
     def clear_character(self):
@@ -134,16 +133,16 @@ class SparkRolyPlayingFunction(BaseRolyPlayingFunction):
         self.chat_status = 'init'
         self.chat_history = [] 
     
-    def gen_sys_prompt(self, text=[], prompt_id=1, additional_list=None):
+    def gen_sys_prompt(self, text=[], prompt_id=1):
         target_prompt = getattr(self.character_info, f"sys_prompt_{prompt_id}")
-        return self.getText(text, target_prompt, role='system', additional_list=additional_list)
+        return self.getText(text, target_prompt, role='system')
     
-    def gen_user_prompt(self, text=[], content=None, prompt_id=1, additional_list=None):
+    def gen_user_prompt(self, text=[], content=None, prompt_id=1):
         target_prompt = getattr(self, f"user_prompt_{prompt_id}")
-        return self.getText(text, target_prompt(content), role='user', additional_list=additional_list)
+        return self.getText(text, target_prompt(content), role='user')
 
-    def get_ai_response(self, text, content, additional_list=None):
-        return self.getText(text, content, role='assistant', additional_list=additional_list)
+    def get_ai_response(self, text, content):
+        return self.getText(text, content, role='assistant')
 
     def update_chat_history(self, question, response, asw_prompt_id=1):
         self.chat_history = self.gen_user_prompt(self.chat_history, question, prompt_id=asw_prompt_id)

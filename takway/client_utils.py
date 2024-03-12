@@ -104,7 +104,7 @@ class CharacterClient(Client, SparkRolyPlayingFunction):
         
         is_bgn = audio_data.get("is_bgn")
         is_end = audio_data.get("is_end")
-        return json.dumps(
+        request_data = \
             {
             "is_bgn": is_bgn,  # bool
             "is_end": is_end,  # bool
@@ -117,7 +117,7 @@ class CharacterClient(Client, SparkRolyPlayingFunction):
                     }
                 },
             "chat_input": {
-                "chat_history": chat_data.get("chat_history") if is_bgn else [],  # list of dict
+                "chat_history": chat_data.get("chat_history") if is_bgn else None,  # list of dict
                 "chat_status": chat_data.get("chat_status"),  # string
                 "with_question_text": chat_data.get("with_question_text", False),  # bool
                 },
@@ -127,4 +127,4 @@ class CharacterClient(Client, SparkRolyPlayingFunction):
                 "wakeup_words": character_data.wakeup_words,  # list of string
                 }
             }
-        ) + '\n'
+        return json.dumps(request_data) + '\n'

@@ -169,8 +169,9 @@ class TakwayApp:
             if stt_data.pop('init_character'):
                 if stt_data['chat_input']['chat_status'] == 'init':
                     spark_api.clear_character()
-                spark_api.set_character(stt_data['character_info']['character_name'])
-                spark_api.chat_history = spark_api.gen_sys_prompt(prompt_id=3) + spark_api.chat_history
+                spark_api.set_character(stt_data['character_info']['character_name'], prompt_id=4, gen_sys_pmt=False)
+                spark_api.chat_history = stt_data['chat_input']['chat_history']
+                # spark_api.chat_history = spark_api.gen_sys_prompt(prompt_id=4) + spark_api.chat_history
                 continue
             # ##########################################
             
@@ -183,7 +184,7 @@ class TakwayApp:
                 question = stt_data['stt_text']
                 chat_status = stt_data['chat_input'].pop('chat_status')
                 
-                chat_text = spark_api.chat_history + spark_api.gen_user_prompt(spark_api.chat_history, content=question, prompt_id=1)
+                chat_text = spark_api.gen_user_prompt(spark_api.chat_history, content=question, prompt_id=1)
                 print(f"chat_text: {chat_text}")
                 
                 spark_api.chat(chat_text)   # chat
