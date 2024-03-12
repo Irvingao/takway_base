@@ -2,7 +2,7 @@ import os
 from flask import Flask, request, Response
 
 from .common_utils import *
-from .vosk_utils import VOSKAutoSpeechRecognizer
+from .stt.funasr_utils import FunAutoSpeechRecognizer
 from .vits_utils import TextToSpeech
 from .sparkapi_utils import SparkChatClient, SparkRolyPlayingClient
 
@@ -44,7 +44,6 @@ class TakwayApp:
     
     def _init_asr_cfg(self, asr_cfg):
         assert 'model_path' in asr_cfg, "asr_cfg must contain model_path"
-        assert 'RATE' in asr_cfg, "asr_cfg must contain RATE"
         asr_cfg['debug'] = self.debug
         return asr_cfg
     
@@ -87,7 +86,7 @@ class TakwayApp:
         
         流式接收来自前端的语音数据，进行流式语音识别，并将识别的文字结果放入队列中，供后续处理。
         '''
-        vosk_asr = VOSKAutoSpeechRecognizer(**self.asr_cfg)
+        asr = FunAutoSpeechRecognizer(**self.asr_cfg)
         
         print("stream_stt_process start")
         stt_texts = []
@@ -96,10 +95,8 @@ class TakwayApp:
             data = self.stt_queue.get()
             print("Recieved stream audio data!")
             
-            # bg_t = time.time()
             audio_data = decode_str2bytes(data['audio_input'].pop('data'))
-            audio_text = self.process_stt(vosk_asr, audio_data)
-            # print(f"process audio data time: {(time.time() - bg_t)*1000:.2f} ms")
+            audio_text = self.process_stt(asr, audio_data, is_end=data['is_end'])
             stt_texts.append(audio_text)
 
             if data.pop('is_bgn'):
@@ -132,15 +129,13 @@ class TakwayApp:
                     self.chat_queue.put(stt_data)
                 stt_texts.clear()
 
-    def process_stt(self, vosk_asr, audio_data):
-        # 调用VOSK进行语音识别
-        asr_result = vosk_asr.partial_recognize(audio_data)
-        # print(f"asr_result: {asr_result}")
-        asr_text = asr_result['final']
-        # if asr_text == [] and asr_result['final'] != []:
-        #     asr_text = asr_result['final']
-        asr_text = ' '.join(asr_text)
+    def process_stt(self, asr, audio_data, is_end):
+        # 语音识别
+        asr_result = asr.streaming_recognize(audio_data, is_end)
+        
         # 去掉字符串中的方括号和单引号
+        asr_text = asr_result['text']
+        asr_text = ' '.join(asr_text)
         asr_str = asr_text.replace("[", "").replace("]", "").replace("'", "").replace(" ", "")
             
         return asr_str
@@ -169,6 +164,7 @@ class TakwayApp:
                 print(f"wait for {spark_api.spark_refresh_time} seconds and refresh spark websocket")
                 continue
             # ##########################################
+            print(f"recieved stt_data: {stt_data}")
             # TODO: 处理init_character的信息
             if stt_data.pop('init_character'):
                 if stt_data['chat_input']['chat_status'] == 'init':

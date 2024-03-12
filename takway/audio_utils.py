@@ -61,9 +61,11 @@ class BaseAudio:
                                   output=output,
                                   frames_per_buffer=CHUNK)
     
-    def load_audio_file(self, filename):
-        wf = wave.open(filename, 'rb')
-        return wf.readframes(wf.getnframes())
+    def load_audio_file(self, wav_file):
+        with wave.open(wav_file, 'rb') as wf:
+            params = wf.getparams()
+            frames = wf.readframes(params.nframes)
+        return frames
     
     def check_audio_type(self, audio_data, return_type=None):
         assert return_type in ['bytes', 'io', None], \
@@ -150,8 +152,39 @@ class AudioPlayer(BaseAudio):
 # ####################################################### #
 # record audio data from microphone
 # ####################################################### #
+class BaseRecorder(BaseAudio):
+    def __init__(self, 
+                 input=True, 
+                 RATE=16000, 
+                 **kwargs):
+        super().__init__(input=input, RATE=RATE, **kwargs)
 
-class HDRecorder(BaseAudio):
+    def record(self, 
+               filename,
+               duration=5, 
+               return_type='io'):
+        print("Recording started.")
+        frames = []
+        for i in range(0, int(self.RATE / self.CHUNK * duration)):
+            data = self.stream.read(self.CHUNK)
+            frames.append(data)
+        print("Recording stopped.")
+        return self.write_wave(filename, frames, return_type)
+
+    def record_chunk_voice(self, 
+                           return_type='bytes', 
+                           CHUNK=None, 
+                           exception_on_overflow=True, 
+                           queue=None):
+        data = self.stream.read(self.CHUNK if CHUNK is None else CHUNK, 
+                                exception_on_overflow=exception_on_overflow)
+        if return_type is not None:
+            return self.write_wave(None, [data], return_type)
+        return data
+
+
+
+class HDRecorder(BaseRecorder):
     def __init__(self, 
                  hd_trigger='keyboard', 
                  keyboard_key='space',
@@ -159,7 +192,7 @@ class HDRecorder(BaseAudio):
                  hd_chunk_size=2048,
                  hd_detect_threshold=50,
                  **kwargs):
-        super().__init__(input=True, **kwargs)
+        super().__init__(**kwargs)
         assert hd_trigger in ['keyboard', 'button', 'all']
         
         self.hd_trigger = hd_trigger
@@ -220,21 +253,11 @@ class HDRecorder(BaseAudio):
         return self.shared_hd_status
     
     def wait_for_hardware_pressed(self):
+        print("Waiting for hardware trigger.")
         while True:
             if self.is_hardware_pressed:
                 break
         return True
-    
-    def record_chunk_voice(self, 
-                           return_type='bytes', 
-                           CHUNK=None, 
-                           exception_on_overflow=True, 
-                           queue=None):
-        data = self.stream.read(self.CHUNK if CHUNK is None else CHUNK, 
-                                exception_on_overflow=exception_on_overflow)
-        if return_type is not None:
-            return self.write_wave(None, [data], return_type)
-        return data
     
     def record_hardware(self, return_type='bytes', queue=None):
         """record audio when hardware trigger"""
@@ -242,22 +265,25 @@ class HDRecorder(BaseAudio):
         frames = []
         recording = True
         while recording:
-            if self.hd_trigger == 'keyboard':
-                if keyboard.is_pressed(self.keyboard_key):
-                    data = self.stream.read(self.CHUNK)
-                    frames.append(data)
-                else:
-                    recording = False
-                    print("Recording stopped.")
-            elif self.hd_trigger == 'button':
-                if self.button.get_value() == 0:
-                    if self.get_button_status():
+            self.wait_for_hardware_pressed()
+            while recording:
+                if self.hd_trigger == 'keyboard':
+                    if keyboard.is_pressed(self.keyboard_key):
                         data = self.stream.read(self.CHUNK)
                         frames.append(data)
                     else:
                         recording = False
-            else:
-                raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
+                        print("Recording stopped.")
+                elif self.hd_trigger == 'button':
+                    if self.button.get_value() == 0:
+                        if self.get_button_status():
+                            data = self.stream.read(self.CHUNK)
+                            frames.append(data)
+                        else:
+                            recording = False
+                else:
+                    recording = False
+                    raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
         return self.write_wave(self.filename, frames, return_type)
     
     '''
