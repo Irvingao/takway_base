@@ -5,8 +5,8 @@ from torch.nn import functional as F
 
 # import commons
 # from modules import LayerNorm
-from takway.vits import commons
-from takway.vits.modules import LayerNorm
+from takway.tts.vits import commons
+from takway.tts.vits.modules import LayerNorm
    
 
 class Encoder(nn.Module):

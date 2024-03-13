@@ -10,9 +10,9 @@ from torch.nn.utils import weight_norm, remove_weight_norm
 # import commons
 # from commons import init_weights, get_padding
 # from transforms import piecewise_rational_quadratic_transform
-from takway.vits import commons
-from takway.vits.commons import init_weights, get_padding
-from takway.vits.transforms import piecewise_rational_quadratic_transform
+from takway.tts.vits import commons
+from takway.tts.vits.commons import init_weights, get_padding
+from takway.tts.vits.transforms import piecewise_rational_quadratic_transform
 
 LRELU_SLOPE = 0.1
 

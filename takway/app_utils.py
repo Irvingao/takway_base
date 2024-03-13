@@ -3,8 +3,8 @@ from flask import Flask, request, Response
 
 from .common_utils import *
 from .stt.funasr_utils import FunAutoSpeechRecognizer
-from .vits_utils import TextToSpeech
-from .sparkapi_utils import SparkChatClient, SparkRolyPlayingClient
+from .tts.vits_utils import TextToSpeech
+from .llm.sparkapi_utils import SparkChatClient, SparkRolyPlayingClient
 
 from .apps.data_struct import *
 

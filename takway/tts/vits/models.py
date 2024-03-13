@@ -7,8 +7,8 @@ from torch.nn import functional as F
 # import modules
 # import attentions
 # import monotonic_align
-from takway.vits import commons, modules, attentions, monotonic_align
-from takway.vits.commons import init_weights, get_padding
+from takway.tts.vits import commons, modules, attentions, monotonic_align
+from takway.tts.vits.commons import init_weights, get_padding
 
 from torch.nn import Conv1d, ConvTranspose1d, Conv2d
 from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm

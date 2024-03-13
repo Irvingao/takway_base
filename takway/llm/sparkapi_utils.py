@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 from wsgiref.handlers import format_date_time
 import websocket  # 使用websocket_client
 
-from .roleplay_utils import BaseRolyPlayingFunction, SparkRolyPlayingFunction
+from takway.roleplay_utils import BaseRolyPlayingFunction, SparkRolyPlayingFunction
 
 class SparkChatClient(BaseRolyPlayingFunction):
     def __init__(self, 
