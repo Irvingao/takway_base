@@ -374,7 +374,6 @@ monotonic_align/core.c
 /*.pth
 *.wav
 *.mp3
-/monotonic_align/monotonic_align
 /resources
 /MoeGoe.spec
 /dist/MoeGoe
@@ -384,7 +383,7 @@ Gao/
 
 
 # custom
-vits*
+vits_model
 model/*.pth
 vosk-model-*
 whisper*
@@ -392,3 +391,4 @@ temp
 *.whl
 *demo*
 Emoji/
+api-for-open-llm/models

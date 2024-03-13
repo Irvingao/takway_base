@@ -58,26 +58,24 @@ Takway.AI
      ①增加随机wink功能；
      ②预留服务器端自定义表情接口；
   3. 完成本地Client客户端多进程系统搭建；
-- **2024.2.16**：
-  完成本地Client段基本架构设计
-
-
 
 
 ---
 
 ### 📌功能支持
 
-- ✅ 前端语音唤醒
+- ✅ PicoVoice语音唤醒
 - ✅ 后端全流式流式生成
-- 🟥 高并发后端设计
-- 🟥 高性能ASR模型
-- 🟥 国内大模型Role-playing Benchmarking
+- ✅ 支持FunASR框架和Modelscope模型库
+- ✅ 支持本地模型API接入
+- 🟥 支持闭源API模型统一接口接入
+- 🟥 FastAPI高并发后端设计
+
 
 ## 🖥️安装和运行：
 
 
-#### 1. 创建conda环境并安装依赖：
+### 1. 创建conda环境并安装依赖：
 
 - 安装基础依赖项(Linux): 
 ```
@@ -94,7 +92,7 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
    pip install -r requirements.txt
 ```
 
-#### 2. 克隆项目到本地：
+### 2. 克隆项目到本地：
 
 - `Takway`: 
 ```
@@ -110,9 +108,17 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
    pip install -r api-for-open-llm/requirements.txt
 ```
 
-#### 3. 下载相关模型文件:
+### 3. 下载相关模型文件:
+-  模型文件路径：
+  ```
+  - takway_base/
+    - vits_model/
+    - api-for-open-llm/
+      - models/
+        - internlm2-chat-1_8b
+  ```
 
-- InternLM模型：[internlm-model](https://www.modelscope.cn/models/jayhust/internlm2-chat-1_8b/summary)
+- InternLM模型：[internlm2-chat-1_8b](https://www.modelscope.cn/models/jayhust/internlm2-chat-1_8b/summary)
   ```
   // 下载InternLM模型(Linux: `apt-get install git-lfs`)
   git lfs install
@@ -125,9 +131,9 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
   git clone https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai.git
   ```
 
-#### 4. 运行项目：
+### 4. 运行项目：
 
-##### (1) 后端(服务器端)：
+#### (1) 后端(服务器端)：
 > 后端可以部署在具有GPU的云端/本地服务器上，后端分为**本地模型服务**和**交互后端服务**。
 
 - **本地模型服务**:
@@ -157,7 +163,7 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
   ```
 
 
-##### (2) 端侧前端(Windows/Linux)：
+#### (2) 端侧前端(Windows/Linux)：
   ```
   python local_client.py
   ```
