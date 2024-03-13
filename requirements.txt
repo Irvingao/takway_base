@@ -17,3 +17,7 @@ pyaudio
 keyboard
 websocket-client
 unidecode
+funasr
+modelscope
+flask
+openai
