@@ -84,52 +84,51 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
 ```
 
 - Conda环境安装(Win & Linux): 
-
 ```
-   conda create -n takway python=3.8
-   // 安装Pytorch，其他版本参照：https://pytorch.org/get-started/previous-versions
-   pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 
-   pip install -r requirements.txt
+conda create -n takway python=3.8
+// 安装Pytorch，其他版本参照：https://pytorch.org/get-started/previous-versions
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 
+pip install -r requirements.txt
 ```
 
 ### 2. 克隆项目到本地：
 
 - `Takway`: 
 ```
-   // 克隆项目到本地 https or ssh
-   git clone https://github.com/Irvingao/takway_base.git or git clone git@github.com:Irvingao/takway_base.git
-   cd takway_base
-   pip install -v -e .
+// 克隆项目到本地 https or ssh
+git clone https://github.com/Irvingao/takway_base.git or git clone git@github.com:Irvingao/takway_base.git
+cd takway_base
+pip install -v -e .
 ```
 
 - `api-for-open-llm`: 
 ```
-   git clone https://github.com/xusenlinzy/api-for-open-llm.git
-   pip install -r api-for-open-llm/requirements.txt
+git clone https://github.com/xusenlinzy/api-for-open-llm.git
+pip install -r api-for-open-llm/requirements.txt
 ```
 
 ### 3. 下载相关模型文件:
 -  模型文件路径：
-  ```
-  - takway_base/
-    - vits_model/
-    - api-for-open-llm/
-      - models/
-        - internlm2-chat-1_8b
-  ```
+```
+- takway_base/
+  - vits_model/
+  - api-for-open-llm/
+    - models/
+      - internlm2-chat-1_8b
+```
 
 - InternLM模型：[internlm2-chat-1_8b](https://www.modelscope.cn/models/jayhust/internlm2-chat-1_8b/summary)
-  ```
-  // 下载InternLM模型(Linux: `apt-get install git-lfs`)
-  git lfs install
-  git clone https://www.modelscope.cn/jayhust/internlm2-chat-1_8b.git
-  ```
+```
+// 下载InternLM模型(Linux: `apt-get install git-lfs`)
+git lfs install
+git clone https://www.modelscope.cn/jayhust/internlm2-chat-1_8b.git
+```
 - VITS语音合成模型：[vits-uma-genshin-honkai](https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai/tree/main)
-  ```
-  // 下载VITS语音合成模型
-  git lfs install
-  git clone https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai.git
-  ```
+```
+// 下载VITS语音合成模型
+git lfs install
+git clone https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai.git
+```
 
 ### 4. 运行项目：
 
@@ -164,9 +163,9 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
 
 
 #### (2) 端侧前端(Windows/Linux)：
-  ```
-  python local_client.py
-  ```
+```
+python local_client.py
+```
 
 ---
 
