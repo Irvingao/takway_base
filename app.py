@@ -1,8 +1,5 @@
-# from takway.app_utils import app, TakwayApp
-import torch
 from takway.app_utils import *
-# from takway.apps.flask_app import *
-from flask import request, Response
+from flask import Response
 
 @app.route('/character-chat', methods=['POST'])
 def handle_all():
@@ -14,7 +11,8 @@ def handle_all():
         
 
 if __name__ == "__main__":
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    multiprocessing.set_start_method('spawn')
+    import torch; device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     asr_cfg={
         'model_path': 'paraformer-zh-streaming',
