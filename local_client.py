@@ -392,7 +392,7 @@ class WebRequestMPManager:
                     self.share_time_dict['client_time'].append(time.time())
                 audio_data = queue_data[1]
                 print("send audio data to server...")
-                print(f"local chat history: {client.chat_history}")
+                # print(f"local chat history: {client.chat_history}")
                 yield client.gen_request_data(
                         audio_data=audio_data, 
                         chat_data=dict(
@@ -534,6 +534,7 @@ if __name__ == '__main__':
         player = 'opencv'
         
         server_url = 'http://127.0.0.1:5000/character-chat'
+        server_url = 'http://10.10.42.227:5000/character-chat'
         
         emo_enable = False
         
