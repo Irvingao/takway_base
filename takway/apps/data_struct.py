@@ -19,13 +19,13 @@ class QueueIterator:
         try:
             data = self.queue.get(block=True, timeout=self.timeout)
             if data is None:  # 使用None作为结束信号
-                print("QueueIterator: End of data")
+                # print("QueueIterator: End of data")
                 raise StopIteration
             else:
-                print("QueueIterator: Get data")
+                # print("QueueIterator: Get data")
                 return data
         except queue.Empty:
-            print("QueueIterator: Queue is empty")
+            # print("QueueIterator: Queue is empty")
             raise StopIteration
 
 
