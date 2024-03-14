@@ -5,6 +5,7 @@ from .common_utils import *
 from .stt.funasr_utils import FunAutoSpeechRecognizer
 from .tts.vits_utils import TextToSpeech
 from .llm.sparkapi_utils import SparkChatClient, SparkRolyPlayingClient
+from .llm.openllm_api import OpenLLMAPI
 
 from .apps.data_struct import *
 
@@ -48,8 +49,8 @@ class TakwayApp:
         return asr_cfg
     
     def _init_llm_cfg(self, llm_cfg):
-        assert 'api_key' in llm_cfg, "llm_cfg must contain api_key"
-        assert 'api_secret' in llm_cfg, "llm_cfg must contain api_secret"
+        # assert 'api_key' in llm_cfg, "llm_cfg must contain api_key"
+        # assert 'api_secret' in llm_cfg, "llm_cfg must contain api_secret"
         llm_cfg['stream_timeout'] = self.stream_timeout
         llm_cfg['debug'] = self.debug
         return llm_cfg
@@ -74,7 +75,8 @@ class TakwayApp:
         self.tts_queue = manager.Queue()
         self.api_queue = manager.Queue()
         processes = [multiprocessing.Process(target=self.stream_stt_process),
-                    multiprocessing.Process(target=self.stream_chat_process),
+                    # multiprocessing.Process(target=self.stream_chat_process),
+                    multiprocessing.Process(target=self.stream_llm_process),
                     multiprocessing.Process(target=self.stream_tts_process)]
         for process in processes:
             process.start()
@@ -139,7 +141,57 @@ class TakwayApp:
         asr_str = asr_text.replace("[", "").replace("]", "").replace("'", "").replace(" ", "")
             
         return asr_str
+    
+    def stream_llm_process(self):
+        print("stream_chat_process start")
         
+        # stream_timeout = self.llm_cfg.pop('stream_timeout')
+        
+        llm_api = OpenLLMAPI(**self.llm_cfg)
+        
+        while True:
+            stt_data = self.chat_queue.get()
+            '''
+            try:
+                stt_data = self.chat_queue.get(timeout=stream_timeout)
+            except queue.Empty:
+                continue
+            '''
+            print(f"recieved stt_data: {stt_data}")
+            
+            if stt_data.pop('init_character'):
+                chat_history = stt_data['chat_input'].get('chat_history')
+                print(f"chat_history: {chat_history}")
+                continue
+            else:
+                prompt = stt_data['stt_text']
+                # chat_status = stt_data['chat_input'].pop('chat_status')
+                
+                chat_history = llm_api.create_chat_prompt(prompt, chat_history)
+                response = llm_api.get_completion(chat_history, temperature=0.7)
+                
+                temp_text = ''
+                for idx, chunk in enumerate(response):
+                    steaming_content = chunk.choices[0].delta.content
+                    is_bgn = True if idx == 0 else False
+                    is_end = True if steaming_content is None else False
+                    if steaming_content:
+                        temp_text += steaming_content
+                        sentence_patch, is_full_sentence = split_chinese_text(temp_text, return_patch=True)
+                        if is_full_sentence:
+                            chat_text = sentence_patch[0]
+                            temp_text = temp_text.replace(chat_text, '')
+                            self.tts_queue.put(
+                                dict(
+                                stream_text=chat_text,
+                                is_bgn=is_bgn,
+                                is_end=is_end,
+                                **stt_data,
+                                )
+                            )
+                
+                
+    
     def stream_chat_process(self):
         '''
         大模型对话进程
@@ -148,8 +200,8 @@ class TakwayApp:
         '''
         
         print("stream_chat_process start")
+        
         spark_api = SparkRolyPlayingClient(**self.llm_cfg)
-
         spark_api.init_websocket()
         
         self.stream_data_queue = queue.Queue()
@@ -190,7 +242,6 @@ class TakwayApp:
                 spark_api.chat(chat_text)   # chat
                 
                 spark_api.clear_character()
-
                         
     def get_stream_response_thread(self, spark_api):
         temp_text = ''

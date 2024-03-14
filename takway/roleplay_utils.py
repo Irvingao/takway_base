@@ -10,7 +10,7 @@ class BaseCharacterInfo:
         self.wakeup_words = self.character_data.pop("wakeup_words")
     
     def load_character_cfg(self, character_data_dir, character_name):
-        print(f"Loading character data for {self.character_name}...")
+        print(f"Loading character data for {character_name}...")
         with open(os.path.join(character_data_dir, 
             f"{character_name}.json"), 'r',encoding="UTF-8") as f:
             character_data = json.load(f)
