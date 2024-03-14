@@ -6,13 +6,11 @@ class BaseCharacterInfo:
     def __init__(self, character_data_dir="character_data", character_name=""):
         self.character_data = self.load_character_cfg(character_data_dir, character_name)
         
-        # print(f"Loading character data for {self.character_name}...")
-        print(self.character_data)
-        
         self.character_id = self.character_data.pop("char_id")
         self.wakeup_words = self.character_data.pop("wakeup_words")
     
     def load_character_cfg(self, character_data_dir, character_name):
+        print(f"Loading character data for {self.character_name}...")
         with open(os.path.join(character_data_dir, 
             f"{character_name}.json"), 'r',encoding="UTF-8") as f:
             character_data = json.load(f)
@@ -37,10 +35,6 @@ class BaseCharacterInfo:
     @property
     def world_scenario(self):
         return self.character_data["world_scenario"]
-    
-    # @property
-    # def wakeup_words(self):
-    #     return self.character_data["wakeup_words"]
     
     @property
     def character_background_infos(self):
@@ -114,6 +108,7 @@ class BaseRolyPlayingFunction:
         # 去掉字符串中的方括号和单引号
         clean_str = irregular_str.replace("[", "").replace("]", "").replace("'", "").replace(" ", "")
         return clean_str
+    
 
 class SparkRolyPlayingFunction(BaseRolyPlayingFunction):
     def __init__(self, character_data_dir):
