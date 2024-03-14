@@ -11,7 +11,7 @@ class OpenLLMAPI(BaseRolyPlayingFunction):
                  **kwargs):
         super().__init__()
         '''
-        class for 
+        class for api-for-open-llm backend
         '''
         self.model = model
         self.stream = stream
