@@ -13,7 +13,6 @@ def handle_all():
 if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     import torch; device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # device = 'cpu'
     
     asr_cfg={
         'model_path': 'paraformer-zh-streaming',
@@ -35,7 +34,8 @@ if __name__ == "__main__":
     )
     
     llm_cfg = dict(
-        base_url="http://10.10.42.227:8000/v1",
+        # base_url="http://10.10.42.227:8000/v1",
+        base_url="http://10.10.230.12:22853/v1",
         model="internlm2-chat-1_8b",
     )
     

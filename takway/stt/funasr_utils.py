@@ -114,14 +114,9 @@ class FunAutoSpeechRecognizer(STTBase):
             t_stamp = time.time()
             
             speech_chunk = self.audio_cache[start_idx:end_idx]
-            # speech_chunk = self.audio_cache[i*self.chunk_partial_size:(i+1)*self.chunk_partial_size].copy() # 创建一个可写副本
-            # assert speech_chunk.flags.writeable == True, "speech_chunk should be a writable array"
-            
+
+            # TODO: exceptions processes
             res = self.asr_model.generate(input=speech_chunk, cache=self.asr_cache, is_final=is_end, chunk_size=self.chunk_size, encoder_chunk_look_back=self.encoder_chunk_look_back, decoder_chunk_look_back=self.decoder_chunk_look_back)
-            
-            # print(f"asr_cache: {self.asr_cache.flags.writeable}")
-            # self.asr_cache['encoder']['feats'].flags.writeable
-            # self.asr_cache['encoder']
             
             print(f"streaming res: {res}")
             text_dict['text'].append(self.text_postprecess(res[0], data_id='text'))
