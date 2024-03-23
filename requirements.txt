@@ -6,7 +6,6 @@ phonemizer
 scipy
 tensorboard
 Unidecode
-pyopenjtalk
 ffmpeg
 jamo
 cn2an
@@ -21,3 +20,4 @@ funasr
 modelscope
 flask
 openai
+pvporcupine

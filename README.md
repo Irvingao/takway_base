@@ -118,7 +118,7 @@ pip install -v -e .
 ```
 pip install -r bida/requirements.txt
 cd bida
-pip install -e .
+# pip install -e .
 ```
 
 

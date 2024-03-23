@@ -346,18 +346,21 @@ class HDRecorder(BaseRecorder):
 # ####################################################### #
 try:
     import webrtcvad
+    webrtcvad_available = True
 except:
     warnings.warn("webrtcvad module not found, please install it if use `vad` hd_trigger.")
+    webrtcvad_available = False
 
 class VADRecorder(HDRecorder):
     def __init__(self, vad_sensitivity=1, frame_duration=30, vad_buffer_size=7, min_act_time=1,**kwargs):
         super().__init__(**kwargs)
-        self.vad = webrtcvad.Vad(vad_sensitivity)
+        if webrtcvad_available:
+            self.vad = webrtcvad.Vad(vad_sensitivity)
         self.vad_buffer_size = vad_buffer_size
         self.vad_chunk_size = int(self.RATE * frame_duration / 1000)
-        
+            
         self.min_act_time = min_act_time    # 最小活动时间，单位秒
-        
+            
         self.is_currently_speaking = False
         self.frames = []
 

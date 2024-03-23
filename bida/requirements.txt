@@ -1,4 +1,7 @@
+tiktoken
 duckdb
+python-dotenv
+# dotenv
 # pydantic
 # python-dotenv==1.0.0
 # requests==2.31.0
