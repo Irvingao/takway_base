@@ -38,6 +38,8 @@ class FunAutoSpeechRecognizer(STTBase):
         self.audio_cache = None
         self.asr_cache = {}
         
+        self._init_asr()
+        
     def check_audio_type(self, audio_data):
         """check audio data type and convert it to bytes if necessary."""
         if isinstance(audio_data, bytes):
@@ -55,6 +57,14 @@ class FunAutoSpeechRecognizer(STTBase):
         else:
             raise TypeError(f"audio_data must be bytes, str or io.BytesIO, but got {type(audio_data)}")
         return audio_data
+    
+    def _init_asr(self):
+        # 随机初始化一段音频数据
+        init_audio_data = np.random.randint(-32768, 32767, size=self.chunk_partial_size, dtype=np.int16)
+        self.asr_model.generate(input=init_audio_data, cache=self.asr_cache, is_final=False, chunk_size=self.chunk_size, encoder_chunk_look_back=self.encoder_chunk_look_back, decoder_chunk_look_back=self.decoder_chunk_look_back)
+        self.audio_cache = None
+        self.asr_cache = {}
+        print("init ASR model done.")
     
     def recognize(self, audio_data):
         """recognize audio data to text"""
@@ -82,7 +92,7 @@ class FunAutoSpeechRecognizer(STTBase):
         if self.audio_cache is None:
             self.audio_cache = audio_data
         else:
-            print(f"audio_data: {audio_data.shape}, audio_cache: {self.audio_cache.shape}")
+            # print(f"audio_data: {audio_data.shape}, audio_cache: {self.audio_cache.shape}")
             if self.audio_cache.shape[0] > 0:
                 self.audio_cache = np.concatenate([self.audio_cache, audio_data], axis=0)
         
@@ -100,7 +110,8 @@ class FunAutoSpeechRecognizer(STTBase):
         if auto_det_end:
             total_chunk_num += 1
 
-        print(f"chunk_size: {self.chunk_size}, chunk_stride: {self.chunk_partial_size}, total_chunk_num: {total_chunk_num}, len: {len(self.audio_cache)}")
+        # print(f"chunk_size: {self.chunk_size}, chunk_stride: {self.chunk_partial_size}, total_chunk_num: {total_chunk_num}, len: {len(self.audio_cache)}")
+        end_idx = None
         for i in range(total_chunk_num):
             if auto_det_end:
                 is_end = i == total_chunk_num - 1
@@ -109,25 +120,29 @@ class FunAutoSpeechRecognizer(STTBase):
                 end_idx = (i+1)*self.chunk_partial_size if i < total_chunk_num-1 else -1
             else:
                 end_idx = (i+1)*self.chunk_partial_size if i < total_chunk_num else -1
-            print(f"cut part: {start_idx}:{end_idx}, is_end: {is_end}, i: {i}, total_chunk_num: {total_chunk_num}")
+            # print(f"cut part: {start_idx}:{end_idx}, is_end: {is_end}, i: {i}, total_chunk_num: {total_chunk_num}")
             
             t_stamp = time.time()
             
             speech_chunk = self.audio_cache[start_idx:end_idx]
 
             # TODO: exceptions processes
-            res = self.asr_model.generate(input=speech_chunk, cache=self.asr_cache, is_final=is_end, chunk_size=self.chunk_size, encoder_chunk_look_back=self.encoder_chunk_look_back, decoder_chunk_look_back=self.decoder_chunk_look_back)
-            
-            print(f"streaming res: {res}")
+            try:
+                res = self.asr_model.generate(input=speech_chunk, cache=self.asr_cache, is_final=is_end, chunk_size=self.chunk_size, encoder_chunk_look_back=self.encoder_chunk_look_back, decoder_chunk_look_back=self.decoder_chunk_look_back)
+            except ValueError as e:
+                print(f"ValueError: {e}")
+                continue
+            # print(f"streaming res: {res}")
             text_dict['text'].append(self.text_postprecess(res[0], data_id='text'))
             
-            print(f"each chunk time: {time.time()-t_stamp}")
+            # print(f"each chunk time: {time.time()-t_stamp}")
             
         if is_end:
             self.audio_cache = None
             self.asr_cache = {}
         else:
-            self.audio_cache = self.audio_cache[end_idx:] # cut the processed part from audio_cache
+            if end_idx:
+                self.audio_cache = self.audio_cache[end_idx:] # cut the processed part from audio_cache
         
         # print(f"text_dict: {text_dict}")
         return text_dict
@@ -135,7 +150,7 @@ class FunAutoSpeechRecognizer(STTBase):
 
 if __name__ == '__main__':
     from takway.audio_utils import BaseAudio
-    rec = BaseAudio(input=True)
+    rec = BaseAudio(input=True, CHUNK=3840)
     
     # return_type = 'bytes'
     file_path = 'my_recording.wav'
