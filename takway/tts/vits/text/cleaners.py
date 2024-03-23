@@ -14,7 +14,7 @@ hyperparameter. Some cleaners are English-specific. You'll typically want to use
 
 import re
 from unidecode import unidecode
-import pyopenjtalk
+# import pyopenjtalk
 from jamo import h2j, j2hcj
 from pypinyin import lazy_pinyin, BOPOMOFO
 import jieba, cn2an
