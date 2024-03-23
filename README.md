@@ -68,7 +68,8 @@ Takway.AI
 - ✅ 后端全流式流式生成
 - ✅ 支持FunASR框架和Modelscope模型库
 - ✅ 支持本地模型API接入
-- 🟥 支持闭源API模型统一接口接入
+- 🟥 支持闭源API模型统一接口接入 @鹤蓝
+- 🟥 统一Logger & Error基类 @
 - 🟥 FastAPI高并发后端设计
 
 
@@ -86,8 +87,17 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
 - Conda环境安装(Win & Linux): 
 ```
 conda create -n takway python=3.8
+```
+
+- [pytorch](https://pytorch.org/get-started/previous-versions/):
+```
 // 安装Pytorch，其他版本参照：https://pytorch.org/get-started/previous-versions
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 
+// 最新版本：pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 
+pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
+```
+
+- 安装项目依赖项：
+```
 pip install -r requirements.txt
 ```
 
@@ -101,21 +111,64 @@ cd takway_base
 pip install -v -e .
 ```
 
+
+#### 如果使用商业LLM API服务：
+
+- `bida`: 
+```
+pip install -r bida/requirements.txt
+cd bida
+pip install -e .
+```
+
+
+#### 如果使用本地LLM模型（不使用则跳过）：
+
 - `api-for-open-llm`: 
 ```
 git clone https://github.com/xusenlinzy/api-for-open-llm.git
-pip install -r api-for-open-llm/requirements.txt
 ```
+  - 安装vllm-cuda118版本：
+  ```
+  pip install vllm==0.3.3
+  export VLLM_VERSION=0.3.2
+  export PYTHON_VERSION=38
+  pip install https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cu118-cp${PYTHON_VERSION}-cp${PYTHON_VERSION}-manylinux1_x86_64.whl
+  # Re-install xFormers with CUDA 11.8.
+  pip install xformers==0.0.23.post1+cu118 --index-url https://download.pytorch.org/whl/cu118 --no-deps
+  ```
+  - 安装其他依赖项：
+  ```
+  pip install -r api-for-open-llm/requirements.txt
+  pip uninstall transformer-engine -y
+  ```
+
 
 ### 3. 下载相关模型文件:
 -  模型文件路径：
 ```
 - takway_base/
   - vits_model/
+    - config.json
   - api-for-open-llm/
     - models/
       - internlm2-chat-1_8b
 ```
+```
+├─vits_model                      # vits模型目录
+│  ├─config.json                   # vits模型配置文件
+│  ├─*.pth                        # vits模型权重文件
+├─takway                           # takway框架主目录
+├─docs                          # 帮助文档
+├─local_client.py                   # 本地客户端脚本
+├─app.py                        # 后端服务启动文件
+├─api-for-open-llm               # 本地模型服务
+│ pytest.ini                    # pytest配置文件
+│ README.md                     # 本说明文件
+│ requirements.txt              # 相关依赖包
+```
+
+
 
 - InternLM模型：[internlm2-chat-1_8b](https://www.modelscope.cn/models/jayhust/internlm2-chat-1_8b/summary)
 ```
