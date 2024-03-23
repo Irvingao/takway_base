@@ -344,7 +344,10 @@ class HDRecorder(BaseRecorder):
 # ####################################################### #
 # record audio data from microphone with VAD
 # ####################################################### #
-import webrtcvad
+try:
+    import webrtcvad
+except:
+    warnings.warn("webrtcvad module not found, please install it if use `vad` hd_trigger.")
 
 class VADRecorder(HDRecorder):
     def __init__(self, vad_sensitivity=1, frame_duration=30, vad_buffer_size=7, min_act_time=1,**kwargs):
