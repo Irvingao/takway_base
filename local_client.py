@@ -359,9 +359,12 @@ class WebRequestMPManager:
         character = self.server_args.pop('character')
         client = CharacterClient(**self.server_args)
         
+        # print(f"-------------------{character}-------------------")
+        # print(f"client.chat_status: {client.chat_status}")
         if client.chat_status == 'init':
             client.set_character(character)
             client.chat_status = 'chating'
+        # print(f"client.chat_history: {client.chat_history}")
                 
         self.logger.info("Local client process started.")
         
@@ -427,6 +430,8 @@ class WebRequestMPManager:
         chat_llm_response = ''
         
         _i = 0
+        # for chunk in response.iter_lines():
+            # if chunk:
         for chunk in response.iter_content(chunk_size=chunk_size):
             temp_data += chunk.decode('utf-8')
             if temp_data.endswith('\n'):
@@ -450,8 +455,6 @@ class WebRequestMPManager:
                 # print("get response.")
         print("End get response.")
             
-            
-            
     def audio_play_process(self, 
                            audio_play_queue, 
                            share_time_dict):
@@ -472,7 +475,14 @@ class WebRequestMPManager:
                 print("Playing audio...")
                 tts_audio = item[1]
                 print(f"wait time: {(time.time() - self.share_time_dict['client_time'][0])*1000:.2f} ms")
-                audio_player.play(tts_audio)
+                try:
+                    audio_player.play(tts_audio)
+                except TypeError as e:
+                    # print(f"audio play error: {e}")
+                    # print(f"tts_audio: {tts_audio}")
+                    # print(f"type tts_audio: {type(tts_audio)}")
+                    # tts_audio: <class 'NoneType'>
+                    continue
 
 
     def emo_display_process(self, emo_display_queue):
@@ -533,7 +543,7 @@ if __name__ == '__main__':
         hd_trigger = 'keyboard'
         player = 'opencv'
         
-        server_url = 'http://127.0.0.1:5000/character-chat'
+        # server_url = 'http://127.0.0.1:5000/character-chat'
         server_url = 'http://10.10.42.227:5000/character-chat'
         
         emo_enable = False
