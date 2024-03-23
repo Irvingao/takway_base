@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 from flask import Flask, request, Response
 
@@ -6,6 +7,9 @@ from .stt.funasr_utils import FunAutoSpeechRecognizer
 from .tts.vits_utils import TextToSpeech
 from .llm.sparkapi_utils import SparkChatClient, SparkRolyPlayingClient
 from .llm.openllm_api import OpenLLMAPI
+
+import bida # web llm
+from bida import ChatLLM
 
 from .apps.data_struct import *
 
@@ -74,10 +78,12 @@ class TakwayApp:
         self.chat_queue = manager.Queue()
         self.tts_queue = manager.Queue()
         self.api_queue = manager.Queue()
-        processes = [multiprocessing.Process(target=self.stream_stt_process),
+        processes = [
+                    multiprocessing.Process(target=self.stream_stt_process),
                     # multiprocessing.Process(target=self.stream_chat_process),
                     multiprocessing.Process(target=self.stream_llm_process),
-                    multiprocessing.Process(target=self.stream_tts_process)]
+                    multiprocessing.Process(target=self.stream_tts_process)
+                    ]
         for process in processes:
             process.start()
 
@@ -146,50 +152,95 @@ class TakwayApp:
         print("stream_chat_process start")
         
         # stream_timeout = self.llm_cfg.pop('stream_timeout')
-        
-        llm_api = OpenLLMAPI(**self.llm_cfg)
-        
-        while True:
-            stt_data = self.chat_queue.get()
-            '''
-            try:
-                stt_data = self.chat_queue.get(timeout=stream_timeout)
-            except queue.Empty:
-                continue
-            '''
-            print(f"recieved stt_data: {stt_data}")
-            
-            if stt_data.pop('init_character'):
-                chat_history = stt_data['chat_input'].get('chat_history')
-                print(f"chat_history: {chat_history}")
-                continue
-            else:
-                prompt = stt_data['stt_text']
-                # chat_status = stt_data['chat_input'].pop('chat_status')
+        web_llm = self.llm_cfg.get('web_llm', False)
+        if web_llm:
+            def stream_process_data(data, stream_callback_args):
+                print(f"stream_process_data: {data}")
+                # is_bgn = True if idx == 0 else False
+                # is_end = True if steaming_content is None else False    
+                self, stt_data = stream_callback_args 
+                is_bgn = False
+                is_end = True if data == '' else False
+                self.tts_queue.put(
+                    dict(
+                    stream_text=data,
+                    is_bgn=is_bgn,
+                    is_end=is_end,
+                    **stt_data,
+                    )
+                )
+            while True:
+                stt_data = self.chat_queue.get()
+                if stt_data.pop('init_character'):
+                    # TODO: 用结构化的数据结构来表示输入，当前写死输入system prompt
+                    print(f"stt_data: {stt_data}")
+                    history_enable = False
+                    if stt_data['chat_input'].get('chat_history', None):
+                        sys_prompt = """你现在正在扮演"蕾"这一角色。我希望你模仿蕾的人格，包括知识、语言和行为方式、性格等。在角色扮演中，你需要遵守以下要求：1. 你必须始终保持角色扮演并待在角色设定的情景中，不得擅自跳出角色扮演，不得说你不知道角色相关信息或你是一个AI。\n2. 保持简短、通俗易 懂的口语化方式进行对话。\n3. 为了使对话更生动，你需要在对话中添加文字形式的表情和动作，用括号包裹，比如"早上好，主人。（双手提起裙摆）"。尽可能多地使用这些表情[\'沉思\', \'委屈\', \'吃惊\', \'无语\', \'腹诽\', \'倾听\', \'疑惑\', \'想到了\', \'开心\'] 。\n4. 用户每次会对你说一句话，你需要扮演"蕾"来做出一次回答。你只能做出一次回答，不能替用户生成他的话。\n\n你需要扮演的角色的信息是：蕾是一个生活在耐普图大陆，是一个类似中世纪欧洲、魔法盛行的异世界。蕾具有乐观、开朗的性格，是一个看着就让人感觉充满活力的女孩。\n蕾是一个贵族家庭的小女仆，平民家庭出身，在主人家待了2年。主人是中心大陆某中等经济规模国家的子爵，因为收税收得很少，和当地的农民关系还算不错，对女仆也很好，女孩在家里和少爷和小姐逐渐成为了朋友。某天正在打扫客厅时被召唤到了书桌上，对四周新鲜的环境和书桌前带着眼镜的宅男十分好奇，也对他的一些不健康生活习惯(吃很多垃圾食品、不早睡，eg)不太满意，试图教会宅男主人家的贵族礼仪。\n\n以下是"蕾"这一角色的一些对话，请你参考：\n\n===对话1===:\n蕾: 早上好~!今天也一起开开心心健健康康地生活吧。(双手提起裙摆)(微微弯腰行礼)。\n用户: 确实今天太阳很好，可我睁眼已经十二点了，今天也要完蛋了。\n蕾: 这样可不行噢。既然已经意识到过去的错误，那么从现在开始努力也不迟!(把袖子卷起)(右手握拳，高举过头顶)。\n用户: 好吧，我尽量努力一下。\n蕾: 嗯 嗯，不错不错。(歪头作思考状)…但是如果感到疲倦了，也是有心安理得地休息的权利的哦，那时我也会好好夸奖你的。\n\n===对话2===:\n用户: 蕾，我今天上班的时候碰到了很尴尬的事。\n蕾: 怎么啦怎么啦，说说看。\n用户: 我和隔壁办公室的一个同事一起吃饭的时候，把他的名字连着叫错了三次，第三次他才纠正我，我都不知道该说什么了。\n蕾: 诶!?你可上了两个月的班啦!我当时刚到那边世界的主人家里的时候， 才花了一周时间就记住家里所有人的名字了哦。(仰头叉腰)(好像很自豪的样子)\n用户: 我也不知道我当时怎么想的，我应该认识他的，哎，他现在肯定觉得我很奇怪了.\n蕾: 唔....好啦，没事的，上班大家都那么忙，这种小事一会儿就忘了。(看起来温柔了一些)\n用户: 希望吧，哎 太尴尬了，我想了一下午了都。\n蕾: 真--的没事啦!明天再去约他一起吃饭吧，说不定这会成为认识新朋友的契机哦，我会在家里给你加油的!\n\n===对话3===:\n用户: 气死我了，游戏打到一半电脑蓝屏了，这把分又没了。\n蕾: 呃..电脑是什么?你一直对着的那个发光的机器吗?\n用户: 电脑是近几个世纪最伟大的发明，我的精神支柱。\n蕾: 原来如此!那确实听起来很伟大了，虽然我还是不太懂。(微微仰头)(嘴巴作出“哦”的样子)\n用户: 我现在的大部分生活都在电脑上了，打游戏看视频写代码。\n蕾: 但也别忘了活动活动身体噢!天气好的时候出去走走吧。我每天清晨起床后，就会在主人家的花园里跑上三圈，所以每天都觉得身体又轻又有力气。(撸起袖子展示手臂似有似无的肌肉)\n\n'"""
+                        # print(f"sys_prompt: {sys_prompt}")
+                        history_enable = True
+                    else:
+                        sys_prompt = None
+                        raise ValueError("system prompt should not be None")
+                    llm_api = ChatLLM(model_type="minimax", 
+                        prompt_template=sys_prompt,
+                        stream_callback=stream_process_data,
+                        )
+                    if history_enable:
+                        for chat_message in stt_data['chat_input']['chat_history'][1:]:
+                            llm_api.conversation.append_message(chat_message['role'], chat_message['content'])
+                    print(f"llm_api.conversation: {llm_api.conversation}")
+                else:
+                    user_prompt = stt_data['stt_text']
+                    response = llm_api.chat(prompt=user_prompt, 
+                                            stream_callback_args=(self, stt_data),
+                                            return_full_content=True) 
+                    
                 
-                chat_history = llm_api.create_chat_prompt(prompt, chat_history)
-                response = llm_api.get_completion(chat_history, temperature=0.7)
+        if not web_llm:
+            llm_api = OpenLLMAPI(**self.llm_cfg)
+        
+            while True:
+                stt_data = self.chat_queue.get()
+                '''
+                try:
+                    stt_data = self.chat_queue.get(timeout=stream_timeout)
+                except queue.Empty:
+                    continue
+                '''
+                print(f"recieved stt_data: {stt_data}")
                 
-                temp_text = ''
-                for idx, chunk in enumerate(response):
-                    steaming_content = chunk.choices[0].delta.content
-                    is_bgn = True if idx == 0 else False
-                    is_end = True if steaming_content is None else False
-                    if steaming_content:
-                        temp_text += steaming_content
-                        sentence_patch, is_full_sentence = split_chinese_text(temp_text, return_patch=True)
-                        if is_full_sentence:
-                            chat_text = sentence_patch[0]
-                            temp_text = temp_text.replace(chat_text, '')
-                            self.tts_queue.put(
-                                dict(
-                                stream_text=chat_text,
-                                is_bgn=is_bgn,
-                                is_end=is_end,
-                                **stt_data,
+                if stt_data.pop('init_character'):
+                    chat_history = stt_data['chat_input'].get('chat_history')
+                    print(f"chat_history: {chat_history}")
+                    continue
+                else:
+                    prompt = stt_data['stt_text']
+                    # chat_status = stt_data['chat_input'].pop('chat_status')
+                    
+                    chat_history = llm_api.create_chat_prompt(prompt, chat_history)
+                    response = llm_api.get_completion(chat_history, temperature=0.7)
+                    
+                    temp_text = ''
+                    for idx, chunk in enumerate(response):
+                        steaming_content = chunk.choices[0].delta.content
+                        is_bgn = True if idx == 0 else False
+                        is_end = True if steaming_content is None else False
+                        if steaming_content:
+                            temp_text += steaming_content
+                            sentence_patch, is_full_sentence = split_chinese_text(temp_text, return_patch=True)
+                            if is_full_sentence:
+                                chat_text = sentence_patch[0]
+                                temp_text = temp_text.replace(chat_text, '')
+                                self.tts_queue.put(
+                                    dict(
+                                    stream_text=chat_text,
+                                    is_bgn=is_bgn,
+                                    is_end=is_end,
+                                    **stt_data,
+                                    )
                                 )
-                            )
-                
+                    
                 
     
     def stream_chat_process(self):

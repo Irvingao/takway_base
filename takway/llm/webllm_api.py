@@ -4,3 +4,9 @@
 2. 可以使用方法查询已支持的model；
 3. 需要能和openllm_api调用方法一致/或需要再封装一层顶层接口，可以根据模型选择调用不同的服务。
 '''
+
+from takway.roleplay_utils import BaseRolyPlayingFunction, SparkRolyPlayingFunction
+
+class BaseWebLLM:
+    def __init__(self, model_name):
+        self.model_name = model_name

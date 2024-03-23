@@ -87,3 +87,10 @@ sentences, punctuation_list = split_chinese_text(text)
 print("断句结果:", sentences)
 print("标点符号列表:", punctuation_list)
 '''
+
+def remove_brackets_and_contents(text):
+    # 正则表达式匹配任何括号及其内容
+    pattern = r'$.*?$'
+    # 使用sub函数替换匹配的文本为空字符串
+    result = re.sub(pattern, '', text)
+    return result
