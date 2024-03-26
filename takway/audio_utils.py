@@ -2,6 +2,7 @@ import io
 import os
 import time
 import pyaudio
+import librosa
 import wave
 import json
 import warnings
@@ -32,6 +33,42 @@ def play_audio(audio_data, type='base64'):
     stream.stop_stream()
     stream.close()
     p.terminate()
+
+
+def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
+    '''
+    Args:
+        audio: numpy.ndarray or tuple, (sr_original, audio_data), original audio data
+        sr_target: int, target sample rate
+
+    return:
+        audio_data_resampled: numpy.ndarray, reshaped audio data with target sample rate
+    '''
+    # 获取原始采样率和音频数据
+    if isinstance(audio, tuple):
+        sr_original, audio_data = audio
+    else:
+        audio_data = audio
+    assert sr_original is not None, f"sr_original should be provided if audio is a \
+        numpy.ndarray, but got sr_original `{sr_original}`."
+    
+    if isinstance(audio_data, np.ndarray):
+        if audio_data.dtype == np.dtype('int16'):
+            print('!!!!!!!!!!!')
+            audio_data = audio_data.astype(np.float32) / np.iinfo(np.int16).max
+        assert audio_data.dtype == np.dtype('float32'), f"audio_data should be float32, \
+            but got {audio_data.dtype}."
+    else:
+        raise TypeError(f"audio_data should be numpy.ndarray, but got {type(audio_data)}.")
+    
+    # 重新采样音频数据
+    audio_data_resampled = librosa.resample(audio_data, orig_sr=sr_original, target_sr=sr_target)
+    
+    if audio_data_resampled.dtype == np.dtype('float32'):
+        audio_data_resampled = np.int16(audio_data_resampled * np.iinfo(np.int16).max)
+    
+    return audio_data_resampled
+
 
 # ####################################################### #
 # base audio class
@@ -65,6 +102,13 @@ class BaseAudio:
         with wave.open(wav_file, 'rb') as wf:
             params = wf.getparams()
             frames = wf.readframes(params.nframes)
+            print("Audio file loaded.")
+            # Audio Parameters
+            print("Channels:", params.nchannels)
+            print("Sample width:", params.sampwidth)
+            print("Frame rate:", params.framerate)
+            print("Number of frames:", params.nframes)
+            print("Compression type:", params.comptype)
         return frames
     
     def check_audio_type(self, audio_data, return_type=None):

@@ -15,25 +15,28 @@ class STTBase:
         
     def parse_json(self, cfg_path):
         cfg = None
-        self.keywords = None
+        self.hotwords = None
         if cfg_path is not None:
             with open(cfg_path, 'r', encoding='utf-8') as f:
                 cfg = json.load(f)
-            self.keywords = cfg.get('hot_words', None)
+            self.hotwords = cfg.get('hot_words', None)
             logging.info(f"load STT config file: {cfg_path}")
-            logging.info(f"Hot words: {self.keywords}")
+            logging.info(f"Hot words: {self.hotwords}")
         else:
             logging.warning("No STT config file provided, using default config.")
         return cfg
 
-    def add_keyword(self, keyword):
-        """add keyword to list"""
-        if isinstance(keyword, str):
-            self.keywords.append(keyword)
-        elif isinstance(keyword, list):
-            self.keywords.extend(keyword)
+    def add_hotword(self, hotword):
+        """add hotword to list"""
+        if self.hotwords is None:
+            self.hotwords = ""
+        if isinstance(hotword, str):
+            self.hotwords = self.hotwords + " " + "hotword"
+        elif isinstance(hotword, (list, tuple)):
+            # 将hotwords转换为str，并用空格隔开
+            self.hotwords = self.hotwords + " " + " ".join(hotword)
         else:
-            raise TypeError("keyword must be str or list")
+            raise TypeError("hotword must be str or list")
 
     def check_audio_type(self, audio_data):
         """check audio data type and convert it to bytes if necessary."""
