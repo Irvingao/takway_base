@@ -54,7 +54,6 @@ def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
     
     if isinstance(audio_data, np.ndarray):
         if audio_data.dtype == np.dtype('int16'):
-            print('!!!!!!!!!!!')
             audio_data = audio_data.astype(np.float32) / np.iinfo(np.int16).max
         assert audio_data.dtype == np.dtype('float32'), f"audio_data should be float32, \
             but got {audio_data.dtype}."
@@ -104,11 +103,11 @@ class BaseAudio:
             frames = wf.readframes(params.nframes)
             print("Audio file loaded.")
             # Audio Parameters
-            print("Channels:", params.nchannels)
-            print("Sample width:", params.sampwidth)
-            print("Frame rate:", params.framerate)
-            print("Number of frames:", params.nframes)
-            print("Compression type:", params.comptype)
+            # print("Channels:", params.nchannels)
+            # print("Sample width:", params.sampwidth)
+            # print("Frame rate:", params.framerate)
+            # print("Number of frames:", params.nframes)
+            # print("Compression type:", params.comptype)
         return frames
     
     def check_audio_type(self, audio_data, return_type=None):
