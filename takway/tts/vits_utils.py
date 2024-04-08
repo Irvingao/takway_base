@@ -8,9 +8,9 @@ from .vits import utils, commons
 from .vits.models import SynthesizerTrn
 from .vits.text import text_to_sequence
 
-def tts_model_init(device='cuda'):
-    # hps_ms = utils.get_hparams_from_file(os.path.join(model_path, 'config.json'))
-    hps_ms = utils.get_hparams_from_file('vits_model/config.json')
+def tts_model_init(model_path='vits_model', device='cuda'):
+    hps_ms = utils.get_hparams_from_file(os.path.join(model_path, 'config.json'))
+    # hps_ms = utils.get_hparams_from_file('vits_model/config.json')
     net_g_ms = SynthesizerTrn(
         len(hps_ms.symbols),
         hps_ms.data.filter_length // 2 + 1,
@@ -19,8 +19,8 @@ def tts_model_init(device='cuda'):
         **hps_ms.model)
     net_g_ms = net_g_ms.eval().to(device)
     speakers = hps_ms.speakers
-    # utils.load_checkpoint(os.path.join(model_path, 'G_953000.pth'), net_g_ms, None)
-    utils.load_checkpoint('vits_model/G_953000.pth', net_g_ms, None)
+    utils.load_checkpoint(os.path.join(model_path, 'G_953000.pth'), net_g_ms, None)
+    # utils.load_checkpoint('vits_model/G_953000.pth', net_g_ms, None)
     return hps_ms, net_g_ms, speakers
 
 class TextToSpeech:
@@ -37,8 +37,7 @@ class TextToSpeech:
         self.hps_ms, self.net_g_ms, self.speakers = self._tts_model_init(model_path)
         
     def _tts_model_init(self, model_path):
-        # hps_ms = utils.get_hparams_from_file(os.path.join(model_path, 'config.json'))
-        hps_ms = utils.get_hparams_from_file('vits_model/config.json')
+        hps_ms = utils.get_hparams_from_file(os.path.join(model_path, 'config.json'))
         net_g_ms = SynthesizerTrn(
             len(hps_ms.symbols),
             hps_ms.data.filter_length // 2 + 1,
@@ -47,8 +46,7 @@ class TextToSpeech:
             **hps_ms.model)
         net_g_ms = net_g_ms.eval().to(self.device)
         speakers = hps_ms.speakers
-        # utils.load_checkpoint(os.path.join(model_path, 'G_953000.pth'), net_g_ms, None)
-        utils.load_checkpoint('vits_model/G_953000.pth', net_g_ms, None)
+        utils.load_checkpoint(os.path.join(model_path, 'G_953000.pth'), net_g_ms, None)
         if self.debug:
             print("Model loaded.")
         return hps_ms, net_g_ms, speakers
