@@ -125,7 +125,7 @@ class FunAutoSpeechRecognizer(STTBase):
         if auto_det_end:
             total_chunk_num += 1
 
-        print(f"chunk_size: {self.chunk_size}, chunk_stride: {self.chunk_partial_size}, total_chunk_num: {total_chunk_num}, len: {len(self.audio_cache)}")
+        # print(f"chunk_size: {self.chunk_size}, chunk_stride: {self.chunk_partial_size}, total_chunk_num: {total_chunk_num}, len: {len(self.audio_cache)}")
         end_idx = None
         for i in range(total_chunk_num):
             if auto_det_end:
@@ -135,9 +135,8 @@ class FunAutoSpeechRecognizer(STTBase):
                 end_idx = (i+1)*self.chunk_partial_size if i < total_chunk_num-1 else -1
             else:
                 end_idx = (i+1)*self.chunk_partial_size if i < total_chunk_num else -1
-            print(f"cut part: {start_idx}:{end_idx}, is_end: {is_end}, i: {i}, total_chunk_num: {total_chunk_num}")
-            
-            t_stamp = time.time()
+            # print(f"cut part: {start_idx}:{end_idx}, is_end: {is_end}, i: {i}, total_chunk_num: {total_chunk_num}")
+            # t_stamp = time.time()
             
             speech_chunk = self.audio_cache[start_idx:end_idx]
 
@@ -147,9 +146,7 @@ class FunAutoSpeechRecognizer(STTBase):
             except ValueError as e:
                 print(f"ValueError: {e}")
                 continue
-            print(f"streaming res: {res}")
             text_dict['text'].append(self.text_postprecess(res[0], data_id='text'))
-            
             # print(f"each chunk time: {time.time()-t_stamp}")
             
         if is_end:
