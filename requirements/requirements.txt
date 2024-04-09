@@ -21,3 +21,4 @@ modelscope
 flask
 openai
 pvporcupine
+redis
