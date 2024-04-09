@@ -142,7 +142,7 @@ pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https
 - 安装项目依赖项：
 
 ```
-pip install -r requirements.txt
+pip install -r requirements/requirements.txt
 ```
 
 ### 2. 克隆项目到本地并安装依赖：
