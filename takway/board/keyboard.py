@@ -11,6 +11,7 @@ class Keyboard(BaseHardware):
         self.init_hd_thread()
         
     def hd_detection_loop(self):
+        keyboard_status = False
         while True:
             keyboard_status = keyboard.is_pressed(self.keyboard_key)
             with self.hd_lock:

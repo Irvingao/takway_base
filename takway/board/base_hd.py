@@ -11,8 +11,10 @@ class BaseHardware:
         
         
     def init_hd_thread(self):
-        self.hd_thread = threading.Thread(target=self.hd_detection_loop, daemon=True)
-        self.hd_thread.start()
+        hd_thread = threading.Thread(target=self.hd_detection_loop)
+        hd_thread.start()
+        hd_thread.join()
+        print("HD detection thread started.")
         
     def hd_detection_loop(self):
         pass
