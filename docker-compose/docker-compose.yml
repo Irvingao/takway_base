@@ -1,0 +1,21 @@
+version: '3.1'
+
+services:
+  redis:
+    image: redis
+    container_name: redis
+    environment:
+      REDIS_PASSWORD: takway
+    command: redis-server --requirepass takway
+    ports:
+      - "6379:6379"
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: takway
+    volumes:
+      - /media/8T3/lvbo/storage/mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
