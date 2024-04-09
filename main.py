@@ -12,7 +12,7 @@ from takway.stt.funasr_utils import FunAutoSpeechRecognizer
 from takway.tts.vits_utils import TextToSpeech
 from takway.common_utils import remove_brackets_and_contents
 from sqlalchemy.orm import Session
-from models.models import Base, CharacterModel, SessionLocal, engine
+from takway.sqls.models import Base, CharacterModel, SessionLocal, engine
 import redis
 import uuid
 
