@@ -1,29 +1,23 @@
 Takway.AI
 =========
 
-<!-- 自动生成目录 -->
+<!-- 根据标题生成目录 -->
 
-- [项目介绍](#项目介绍)
-  - [项目背景](#项目背景)
-  - [项目目标](#项目目标)
-  - [项目特色](#项目特色)
-  - [项目架构](#项目架构)
-- [项目功能](#项目功能)
-  - [🎃面向角色扮演功能的多模态交互系统🤖](#面向角色扮演功能的多模态交互系统)
+- [🎃面向角色扮演功能的多模态交互系统🤖](#面向角色扮演功能的多模态交互系统)
   - [📆项目更新日志](#项目更新日志)
   - [📌功能支持](#功能支持)
-  - [🧩模块设计](#模块设计)
+  - [🧩模块设计](#🧩模块设计)
+- [🖥️环境配置](#🖥️环境配置)
+  - [1. 服务器`Server`后端](#1-服务器`Server`后端)
+  - [2. 客户端`Client`前端](#2-客户端`Client`前端)
+- [📚基础模块使用](#📚基础模块使用)
+  - [1. 麦克风录音模块](#1-麦克风录音模块)
+  - [2. 语音识别模块](#2-语音识别模块)
+  - [3. 大模型模块](#3-大模型模块)
+  - [4. 语音合成模块](#4-语音合成模块)
+  - [5. 后端服务请求模块](#5-后端服务请求模块)
 
-- [安装和运行](#安装和运行)
-  - [1. 创建conda环境并安装Pytorch](#1-创建conda环境并安装pytorch)
-  - [2. 克隆项目代码](#2-克隆项目代码)
-  - [3. 启动服务](#3-启动服务)
-  - [4. 运行测试](#4-运行测试)
-
-
-
-
-### 🎃面向角色扮演功能的多模态交互系统🤖 [[飞书Link](https://lleeei6t29.feishu.cn/docx/BzVWd57K9oyVSixhTamcv4tSnHf)]
+## 🎃面向角色扮演功能的多模态交互系统🤖 
 
 - 🦾前端：基于Linux端侧平台的语音、视觉交互系统，可以实现语音唤醒、语音输入、语音播放、表情互动等功能。其中语音输入框架如图所示：
 
@@ -31,18 +25,13 @@ Takway.AI
 
 - 🖲️后端：基于Python Flask框架的后端语音识别服务，可以实现流式语音识别、大模型流式生成、流式语音合成等功能。后端多进程框架如下图所示：
 
-      待更新...
+  待更新...
 
 <!-- ![后端](docs/images/backend-framework.png) -->
 
 ---
 
-
-
-
-
 ### 📆项目更新日志
-
 
 <details>
 <summary>点击展开更新日志</summary>
@@ -123,7 +112,6 @@ Takway.AI
 │  ├─board                              # 硬件板载端模块
 │  ├─clients                            # 硬件客户端模块
 │  ├─apps                               # 旧版后端服务模块
-│  ├─bida                               # bida模块
 ├─examples                          # 示例代码
 ├─tools                             # 工具脚本
 ├─main.py                           # AI后端服务启动文件
@@ -132,17 +120,24 @@ Takway.AI
 ├─requirements/                     # 相关依赖包
 │   ├─board_requirements.txt            # 硬件板载端依赖
 │   ├─requirements.txt                  # 服务器端依赖
+
+├─picovoice_models                  # Picovoice语音唤醒模型
 ├─vits_model                        # vits模型目录(必须)
 │  ├─config.json                        # vits模型配置文件
 │  ├─*.pth                              # vits模型权重文件
-├─api-for-open-llm                  # 本地模型目录(可选)
-│  ├─models                             # 本地模型目录
+├─bida                               # bida模块(必须，可能弃用)
+├─api-for-open-llm                  # 本地模型API(可选)
+│  ├─models                             # 本地模型目录(可选)
 │  │  ├─internlm2-chat-1_8b             # (示例)
 ```
 
-## 🖥️安装和运行：
+## 🖥️环境配置
 
-### 1. 创建conda环境并安装Pytorch：
+请根据 `Server`和 `Client`的不同环境，按照以下步骤进行安装和运行。
+
+### 1. 服务器`Server`后端
+
+#### (1) 安装conda环境及Pytorch：
 
 - 安装基础依赖项(Linux):
 
@@ -157,7 +152,7 @@ sudo apt-get install cmake g++ gcc portaudio19-dev
 conda create -n takway python=3.8
 ```
 
-- [pytorch](https://pytorch.org/get-started/previous-versions/):
+- [`Pytorch`](https://pytorch.org/get-started/previous-versions/):
 
 ```
 // 安装Pytorch，其他版本参照：https://pytorch.org/get-started/previous-versions
@@ -168,10 +163,10 @@ pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https
 - 安装项目依赖项：
 
 ```
-pip install -r requirements/requirements.txt
+pip install -r requirements/server_requirements.txt
 ```
 
-### 2. 克隆项目到本地并安装依赖：
+#### (2) 克隆项目到本地并安装依赖：
 
 - `Takway`:
 
@@ -182,15 +177,13 @@ cd takway_base
 pip install -v -e .
 ```
 
-#### (1) LLM模型依赖项安装：
+#### (3) LLM模型依赖项安装：
 
 - 如果使用商业LLM API服务（如minimax等）:
 
   - 无需安装依赖项，直接进入[3. 下载相关模型文件步骤](#3-下载相关模型文件)。
-
-
-
 - 如果使用商业LLM bida API（不使用则跳过）:
+
   <details>
   <summary>点击展开安装细节</summary>
 
@@ -201,9 +194,10 @@ pip install -v -e .
   cd bida
   # pip install -e .
   ```
-  </details>
 
+  </details>
 - 如果使用本地LLM模型（不使用则跳过）：
+
   <details>
   <summary>点击展开安装细节</summary>
   - `api-for-open-llm`:
@@ -232,19 +226,19 @@ pip install -v -e .
 
   </details>
 
-### 3. 下载相关模型文件:
+#### 3. 下载相关模型文件:
 
 - VITS语音合成模型（必须）：[vits-uma-genshin-honkai](https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai/tree/main)
 
-  ```
-  // 下载VITS语音合成模型
-  git lfs install
-  git clone https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai.git
-  ```
+```
+// 下载VITS语音合成模型
+git lfs install
+git clone https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai.git
+```
+
 - InternLM模型（可选）：[internlm2-chat-1_8b](https://www.modelscope.cn/models/jayhust/internlm2-chat-1_8b/summary)
   <details>
   <summary>点击展开下载细节</summary>
-
   ```
   // 下载InternLM模型(Linux: `apt-get install git-lfs`)
   git lfs install
@@ -252,32 +246,79 @@ pip install -v -e .
   ```
   </details>
 
-### 4. 运行项目：
+### 2. 客户端`Client`前端
 
-#### (1) 服务器后端(Linux)：
+#### (1) 克隆项目到本地并安装依赖：
+
+```
+// 克隆项目到本地 https or ssh
+git clone https://github.com/Irvingao/takway_base.git or git clone git@github.com:Irvingao/takway_base.git
+cd takway_base
+pip install -v -e .
+```
+
+#### (2) 安装板载端环境依赖：
+
+```
+pip install -r requirements/board_requirements.txt
+```
+
+#### (3) 下载相关模型文件:
+
+- [Picovoice：](https://picovoice.ai/docs/quick-start/porcupine-python/)边缘端关键词唤醒模型
+
+```
+目前使用的是`可莉可莉_zh_raspberry-pi_v3_0_0`版本，可以点击网站自行设置替换关键词模型。
+```
+
+## 📚基础模块使用
+
+`examples/`目录下提供了一些基础模块的使用示例，包括：
+
+### 1. 麦克风录音模块：
+
+- `audio_record.ipynb`: 调用麦克风实现录音功能。
+
+### 2. 语音识别模块：
+
+- `stt_funasr.ipynb`: 基于funasr框架实现语音识别功能。
+
+### 3. 大模型模块：
+
+- `llm_minimax_chat.ipynb`: 正常/流式请求Minimax商业API实现聊天功能。
+
+### 4. VITS语音合成模块：
+
+- `tts_vits.ipynb`: 调用VITS语音合成模型实现文本转语音功能。
+
+### 5. 后端服务请求模块：
+
+- `front_request.ipynb`: 前端请求后端服务样例代码实现。
+
+<!-- 
+- `audio_record.ipynb`: 调用硬件麦克风实现录音功能。
+- `tts_vits.ipynb`: 调用VITS语音合成模型实现文本转语音功能。
+- `front_request.ipynb`: 前端请求后端服务样例代码实现。
+- `stt_funasr.ipynb`: 基于funasr框架实现语音识别功能。
+- `llm_minimax_chat.ipynb`: 正常/流式请求Minimax商业API实现聊天功能。 
+-->
+
+## ▶️运行项目：
+
+### 1. 服务器后端(Linux)：
 
 > 后端可以部署在具有GPU的云端/本地机器上。
 
 - **启动后端服务**:
 
-  ```
-  python main.py
-  ```
+```
+python main.py
+```
 
-#### (2) 硬件客户端(Windows/Linux)：
+### 2. 硬件客户端(Windows/Linux)：
+
 - **启动硬件交互前端服务**:
 
-  ```
-  python local_client.py
-  ```
-
-
-## 基础模块使用
-
-`examples`目录下提供了一些基础模块的使用示例，包括：
-
-- `audio_record.ipynb`: 调用硬件麦克风实现录音功能。
-- `tts_vits.ipynb`: 调用VITS语音合成模型实现文本转语音功能。
-- `front_request.ipynb`: 前端请求后端服务样例代码实现。
-- `stt_funasr.ipynb`: 基于funasr框架实现语音识别功能。
-- `llm_minimax_chat.ipynb`: 正常/流式请求Minimax商业API实现聊天功能。
+```
+python local_client.py
+```
