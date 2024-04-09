@@ -9,16 +9,14 @@ import warnings
 import threading
 import numpy as np
 from collections import deque
+
+from .common_utils import encode_bytes2str, decode_str2bytes
+   
+from takway.board import *
 try:
     import keyboard
 except:
-    warnings.warn("keyboard module not found, please install it if use `keyboard` hd_trigger.")
-try:
-    import gpiod as gpio
-except:
-    warnings.warn("gpiod module not found, please install it if use `button` hd_trigger.")
-from .common_utils import encode_bytes2str, decode_str2bytes
-   
+    pass
                         
 def play_audio(audio_data, type='base64'):
     '''
@@ -147,6 +145,8 @@ class BaseAudio:
         if return_type == 'io':
             if filename is None:
                 filename = io.BytesIO()
+            if self.filename:
+                filename = self.filename
             return self.write_wave_io(filename, frames) 
         elif return_type == 'bytes':
             return self.write_wave_bytes(frames)
@@ -226,7 +226,6 @@ class BaseRecorder(BaseAudio):
         return data
 
 
-
 class HDRecorder(BaseRecorder):
     def __init__(self, 
                  hd_trigger='keyboard', 
@@ -242,91 +241,48 @@ class HDRecorder(BaseRecorder):
         self.voice_trigger = voice_trigger
         self.hd_chunk_size = hd_chunk_size
         
-        self.hd_detect_threshold = hd_detect_threshold
-        self.hd_lock = threading.Lock()
-        self.shared_hd_status = False
         if hd_trigger == 'keyboard':
             self.keyboard_key = keyboard_key
-            hd_detect_thread = threading.Thread(target=self.get_keyboard_status)
+            self.hardware = Keyboard(hd_trigger, keyboard_key, hd_detect_threshold)
         if hd_trigger == 'button':
-            self.button = self.button_init()
-            hd_detect_thread = threading.Thread(target=self.get_button_status)
-        hd_detect_thread.start()
+            self.hardware = V329(hd_trigger, hd_detect_threshold)
+            self.button = self.hardware.button
         print(f"Using {hd_trigger} as hardware trigger.")
         
-    def button_init(self):
-        PH_BASE = (8-1)*32 #PH
-
-        gpiochip1 = gpio.chip("gpiochip1")
-        button = gpiochip1.get_line((PH_BASE+5))
-        config = gpio.line_request()
-        config.request_type = gpio.line_request.DIRECTION_INPUT
-        config.flags = gpio.line_request.FLAG_BIAS_PULL_UP
-        button.request(config)
-        return button
-
-    def get_tmp_button_status(self):
-        return True if self.button.get_value() == 1 else False
-        
-    def get_button_status(self):
-        self.shared_hd_status = False
-        button_value_list = deque(maxlen=self.hd_detect_threshold)
-        while True:
-            if len(button_value_list) > button_value_list.maxlen:
-                button_value_list.popleft()
-            button_value_list.append(self.get_tmp_button_status())
-            # 记录50个值，如果连续50个值都是True，则认为按钮被按下
-            if button_value_list.count(True) == button_value_list.maxlen:
-                with self.hd_lock:
-                    self.shared_hd_status = True
-            # 记录50个值，如果连续50个值都是False，则认为按钮被松开
-            if button_value_list.count(False) == button_value_list.maxlen:
-                with self.hd_lock:
-                    self.shared_hd_status = False
-    
-    def get_keyboard_status(self):
-        while True:
-            keyboard_status = keyboard.is_pressed(self.keyboard_key)
-            with self.hd_lock:
-                self.shared_hd_status = keyboard_status
-            time.sleep(0.001)
+    def wait_for_hardware_pressed(self):
+        return self.hardware.wait_for_hardware_pressed()
     
     @property
     def is_hardware_pressed(self):
-        return self.shared_hd_status
+        return self.hardware.is_hardware_pressed
     
-    def wait_for_hardware_pressed(self):
-        print("Waiting for hardware trigger.")
-        while True:
-            if self.is_hardware_pressed:
-                break
-        return True
-    
-    def record_hardware(self, return_type='bytes', queue=None):
+    def record_hardware(self, return_type='bytes'):
         """record audio when hardware trigger"""
         print("Recording started for hardware trigger.")
         frames = []
-        recording = True
-        while recording:
-            self.wait_for_hardware_pressed()
-            while recording:
-                if self.hd_trigger == 'keyboard':
-                    if keyboard.is_pressed(self.keyboard_key):
+        self.wait_for_hardware_pressed()
+        while True:
+            if self.hd_trigger == 'keyboard':
+                if keyboard.is_pressed(self.keyboard_key):
+                    print("recording...")
+                    data = self.record_chunk_voice(
+                        CHUNK=self.CHUNK, 
+                        return_type=None, 
+                        exception_on_overflow=False)
+                    frames.append(data)
+                else:
+                    break
+                    print("Recording stopped.")
+            elif self.hd_trigger == 'button':
+                if self.button.get_value() == 0:
+                    if self.get_button_status():
                         data = self.stream.read(self.CHUNK)
                         frames.append(data)
                     else:
-                        recording = False
-                        print("Recording stopped.")
-                elif self.hd_trigger == 'button':
-                    if self.button.get_value() == 0:
-                        if self.get_button_status():
-                            data = self.stream.read(self.CHUNK)
-                            frames.append(data)
-                        else:
-                            recording = False
-                else:
-                    recording = False
-                    raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
+                        break
+            else:
+                recording = False
+                raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
         return self.write_wave(self.filename, frames, return_type)
     
     '''
