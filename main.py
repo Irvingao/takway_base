@@ -78,11 +78,14 @@ def get_db():
 
 @app.post("/characters/", response_model=Character)
 def create_character(character: Character, db: Session = Depends(get_db)):
-    db_character = CharacterModel(**character.model_dump())
-    db.add(db_character)
-    db.commit()
-    db.refresh(db_character)
-    return Character.model_validate(db_character, from_attributes=True)
+    try:
+        db_character = CharacterModel(**character.model_dump())
+        db.add(db_character)
+        db.commit()
+        db.refresh(db_character)
+        return Character.model_validate(db_character, from_attributes=True)
+    except Exception as e:
+        raise HTTPException(status_code=409,detail=str(e))
 
 @app.get("/characters/{char_id}", response_model=Character)
 def read_character(char_id: int, db: Session = Depends(get_db)):
@@ -289,4 +292,4 @@ def chat_completions(messages, uid):
 
 if __name__ == "__main__":
     logger.info("Starting server...")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=7878)
