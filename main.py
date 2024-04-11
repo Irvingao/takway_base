@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from takway.sqls.models import Base, CharacterModel, SessionLocal, engine
 import redis
 import uuid
+from config import config
 
 ######################################## log init start ########################################
 logger = logging.getLogger('takway_log')
@@ -124,29 +125,32 @@ def get_redis():
 
 @app.post("/session", response_model=SessionResponse)
 async def create_session(request: SessionRequest):
-    uid = request.uid
-    char_id = request.char_id
-    session_id = str(uuid.uuid4())
+    try:
+        uid = request.uid
+        char_id = request.char_id
+        session_id = str(uuid.uuid4())
 
-    # 创建或更新会话
-    session_data = {
-        "uid": uid,
-        "messages": "[]",
-        "user_info": "{}",
-        "char_id": str(char_id),
-        "token": "0"
-    }
+        # 创建或更新会话
+        session_data = {
+            "uid": uid,
+            "messages": "[]",
+            "user_info": "{}",
+            "char_id": str(char_id),
+            "token": "0"
+        }
 
-    r.hmset(session_id, session_data)
+        r.hmset(session_id, session_data)
 
-    return {
-        "session_id": session_id,
-        "uid": uid,
-        "messages": [],
-        "user_info": {},
-        "char_id": char_id,
-        "token": 0
-    }
+        return {
+            "session_id": session_id,
+            "uid": uid,
+            "messages": [],
+            "user_info": {},
+            "char_id": char_id,
+            "token": 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=409,detail=str(e))
 
 @app.get("/session/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str):
@@ -235,6 +239,7 @@ async def chat(text: str = Form(None), meta_info: str = Form(...), audio: Upload
     response = ChatResponse(text=sessions[uid]["messages"][-1]["content"], meta_info=meta_info_dict, audio_path=response_audio_path)
     return response
 
+
 def audio_to_text(audio_path):
     """
     Convert audio to text using FunAutoSpeechRecognizer.
@@ -292,4 +297,4 @@ def chat_completions(messages, uid):
 
 if __name__ == "__main__":
     logger.info("Starting server...")
-    uvicorn.run(app, host="0.0.0.0", port=7878)
+    uvicorn.run(app, host="0.0.0.0", port=config["main"]['port'])
