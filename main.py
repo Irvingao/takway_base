@@ -22,6 +22,7 @@ from config import config
 import websocket
 from flask import request
 import queue
+import base64
 
 
 ######################################## log init start ########################################
@@ -228,24 +229,28 @@ async def chat(ws: WebSocket):
         nonlocal chat_type
         nonlocal session_id
         nonlocal response_type
-        while True:
-            data_json = await ws.receive_json()
-            q_recv.put(data_json)
-            if data_json["text"]:
-                if data_json["meta_info"]["voice_synthesize"]:
-                    response_type = RESPONSE_AUDIO
-                chat_type = CHAT_TEXT
-                current_message = data_json['text']
-                session_id = data_json["meta_info"]["session_id"]
-                break
-            else:
-                chat_type = CHAT_AUDIO
+        try:
+            while True:
+                data_json = await ws.receive_json()
+                q_recv.put(data_json)
+                if data_json["text"]:
+                    if data_json["meta_info"]["voice_synthesize"]:
+                        response_type = RESPONSE_AUDIO
+                    chat_type = CHAT_TEXT
+                    current_message = data_json['text']
+                    session_id = data_json["meta_info"]["session_id"]
+                    break
+                else:
+                    chat_type = CHAT_AUDIO
 
-            if data_json['meta_info']["is_end"]:
-                if data_json["meta_info"]["voice_synthesize"]:
-                    response_type = RESPONSE_AUDIO
-                session_id = data_json["meta_info"]["session_id"]
-                break
+                if data_json['meta_info']["is_end"]:
+                    if data_json["meta_info"]["voice_synthesize"]:
+                        response_type = RESPONSE_AUDIO
+                    session_id = data_json["meta_info"]["session_id"]
+                    break
+        except Exception as e:
+            error_message = {"type":"error","code":500,"msg":f"error occur when receiving data from front: {str(e)}"}
+            ws.send_text(json.dumps(error_message))
     
     
     async def user_chat_send():
@@ -317,34 +322,46 @@ async def chat(ws: WebSocket):
     if chat_type==CHAT_AUDIO:
         await user_chat_send()
 
+
+
     if not r.exists(session_id):
-        raise HTTPException(status_code=404,detail="Session not found")
-    print(f"user input : {current_message}")
+        error_message = {"type":"error","code":500,"msg":f"error occur when getting session_data: session_id not found"}
+        await ws.send_text(json.dumps(error_message))
 
-    session_data = r.hgetall(session_id)
-    messages = json.loads(session_data["messages"])
-    token_count = int(session_data["token"])
+    try:
+        print(f"user input : {current_message}")
+        msg_input = {"type":"debug_msg","code":200,"msg":f"receieve from user: {current_message}"}
+        await ws.send_text(json.dumps(msg_input,ensure_ascii=False))
 
-    messages.append({"role":"user","content":current_message})
-    token_count += len(current_message)
+        session_data = r.hgetall(session_id)
+        messages = json.loads(session_data["messages"])
+        token_count = int(session_data["token"])
 
-    payload = json.dumps({
-        "model":"abab5.5-chat",
-        "stream":True,
-        "messages": messages,
-        "tool_choice":"auto",
-        "max_tokens":10000,
-        "temperature":0.9,
-        "top_p":1
-    })
+        messages.append({"role":"user","content":current_message})
+        token_count += len(current_message)
 
+    except Exception as e:
+        error_message = {"type":"error","code":500,"msg":f"error occur when hadding session data: {str(e)}"}
+        await ws.send_text(json.dumps(error_message))
 
-    headers={
-        'Authorization':f"Bearer {config['llm']['API_KEY']}",
-        'Content-Type':'application/json'
-    }
-    response = requests.request("POST",url,headers=headers,data=payload)
-    
+    try:
+        payload = json.dumps({
+            "model":"abab5.5-chat",
+            "stream":True,
+            "messages": messages,
+            "tool_choice":"auto",
+            "max_tokens":10000,
+            "temperature":0.9,
+            "top_p":1
+        })
+        headers={
+            'Authorization':f"Bearer {config['llm']['API_KEY']}",
+            'Content-Type':'application/json'
+        }
+        response = requests.request("POST",url,headers=headers,data=payload)
+    except Exception as e:
+        error_message = {"type":"error","code":500,"msg":f"error occur when sending data to the llm: {str(e)}"}
+        await ws.send_text(json.dumps(error_message))
 
     def split_string_with_punctuation(text):
         punctuations = "，！？。"
@@ -361,36 +378,44 @@ async def chat(ws: WebSocket):
             result.append(current_sentence)
         return result
 
-    response_buf = ""
-    if response.status_code == 200:
-        for line in response.iter_lines():
-            if line:
-                if response_type == RESPONSE_TEXT:
-                    decoded_line = line.decode('utf-8')
-                    llm_message_str = decoded_line.split('data: ')[1]
-                    llm_message = json.loads(llm_message_str)
-                    if llm_message["object"]=="chat.completion.chunk":    
-                        await ws.send_json(llm_message["choices"][0]['delta']["content"])
-                    else:
-                        break
-                elif response_type == RESPONSE_AUDIO:
-                    decoded_line = line.decode('utf-8')
-                    llm_message_str = decoded_line.split('data: ')[1]
-                    llm_message = json.loads(llm_message_str)
-                    if llm_message["object"]=="chat.completion.chunk":
-                        response_buf += llm_message["choices"][0]['delta']["content"]
-                        splitted_llm_text = split_string_with_punctuation(response_buf)
-                        if splitted_llm_text[-1] and splitted_llm_text[-1] not in "，。？！":
-                            response_buf = splitted_llm_text[-1]
-                            del splitted_llm_text[-1]
+    try:
+        response_buf = ""
+        if response.status_code == 200:
+            for line in response.iter_lines():
+                if line:
+                    if response_type == RESPONSE_TEXT:
+                        decoded_line = line.decode('utf-8')
+                        llm_message_str = decoded_line.split('data: ')[1]
+                        llm_message = json.loads(llm_message_str)
+                        if llm_message["object"]=="chat.completion.chunk":
+                            text_message = {"type":"text","code":200,"msg":llm_message["choices"][0]['delta']["content"]}    
+                            await ws.send_text(json.dumps(text_message))
                         else:
-                            response_buf = ""
-                        if len(splitted_llm_text) !=0:
-                            for sentence in splitted_llm_text:
-                                sr,audio = tts.synthesize(sentence,0,103,0.1,0.668,1.2,False,True)
-                                await ws.send_bytes(audio)
-                    else:
-                        break
+                            break
+                    elif response_type == RESPONSE_AUDIO:
+                        decoded_line = line.decode('utf-8')
+                        llm_message_str = decoded_line.split('data: ')[1]
+                        llm_message = json.loads(llm_message_str)
+                        if llm_message["object"]=="chat.completion.chunk":
+                            response_buf += llm_message["choices"][0]['delta']["content"]
+                            splitted_llm_text = split_string_with_punctuation(response_buf)
+                            if splitted_llm_text[-1] and splitted_llm_text[-1] not in "，。？！":
+                                response_buf = splitted_llm_text[-1]
+                                del splitted_llm_text[-1]
+                            else:
+                                response_buf = ""
+                            if len(splitted_llm_text) !=0:
+                                for sentence in splitted_llm_text:
+                                    sr,audio = tts.synthesize(sentence,0,103,0.1,0.668,1.2,False,False)
+                                    audio_message = {"type":"audio","code":200,"msg":base64.b64encode(audio).decode('utf-8')}
+                                    await ws.send_text(json.dumps(audio_message))
+                        else:
+                            break
+    except Exception as e:
+        error_message = {"type":"error","code":500,"msg":f"error occur when responding to the clint: {str(e)}"}
+        await ws.send_text(json.dumps(error_message))
+    
+    close_message = {"type":"close","code":200,"msg":""}
     await ws.send_text("CLOSE_CONNECTION")
     time.sleep(0.1)
     await ws.close()
