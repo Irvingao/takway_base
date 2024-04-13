@@ -263,7 +263,7 @@ def process_tts(text):
     tts.save_audio(audio, sr, file_name=path)
     return path
 
-def chat_completions(messages, uid):
+def chat_completions(messages, uid, stream=False):
     """
     Call the chat API to get completions.
     """
@@ -277,7 +277,7 @@ def chat_completions(messages, uid):
         data=json.dumps({
             "model": "abab5.5-chat",
             "messages": messages,
-            "stream": False,
+            "stream": stream,
             "temperature": 0.8,
             "max_tokens": 10000,
         }),
