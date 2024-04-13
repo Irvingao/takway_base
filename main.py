@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, Request, File, UploadFile, Form, Depends, HTTPException
+from fastapi import FastAPI, Request, File, UploadFile, Form, Depends, HTTPException ,WebSocket
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 import uvicorn
@@ -11,11 +11,18 @@ from takway.audio_utils import BaseRecorder, reshape_sample_rate
 from takway.stt.funasr_utils import FunAutoSpeechRecognizer
 from takway.tts.vits_utils import TextToSpeech
 from takway.common_utils import remove_brackets_and_contents
+from takway.satt import generate_xf_satt_url
 from sqlalchemy.orm import Session
+from takway.roleplay_utils import BaseCharacterInfo
 from takway.sqls.models import Base, CharacterModel, SessionLocal, engine
 import redis
 import uuid
+import _thread as thread
 from config import config
+import websocket
+from flask import request
+import queue
+
 
 ######################################## log init start ########################################
 logger = logging.getLogger('takway_log')
@@ -124,27 +131,33 @@ def get_redis():
     return r
 
 @app.post("/session", response_model=SessionResponse)
-async def create_session(request: SessionRequest):
+async def create_session(request: SessionRequest,db: Session = Depends(get_db)):
     try:
         uid = request.uid
         char_id = request.char_id
         session_id = str(uuid.uuid4())
 
+        db_character =  db.query(CharacterModel).filter(CharacterModel.char_id == char_id).first()
+        system_prompt = f"""我们正在角色扮演对话游戏中，你需要始终保持角色扮演并待在角色设定的情景中，你扮演的角色信息如下：\n{"角色名称: " + db_character.char_name}。\n{"角色背景: " + db_character.description}\n{"角色所处环境: " + db_character.world_scenario}\n{"角色的常用问候语: " + db_character.wakeup_words}。\n\n你需要用简单、通俗易懂的口语化方式进行对话，在没有经过允许的情况下，你需要保持上述角色，不得擅自跳出角色设定。\n"""
+
+        messages = [{"role":"system","content":f"{system_prompt}"}]
+
         # 创建或更新会话
         session_data = {
             "uid": uid,
-            "messages": "[]",
+            "messages": json.dumps(messages),
             "user_info": "{}",
             "char_id": str(char_id),
             "token": "0"
         }
 
         r.hmset(session_id, session_data)
+        
 
         return {
             "session_id": session_id,
             "uid": uid,
-            "messages": [],
+            "messages": messages,
             "user_info": {},
             "char_id": char_id,
             "token": 0
@@ -176,8 +189,6 @@ rec = BaseRecorder()
 asr = FunAutoSpeechRecognizer()
 tts = TextToSpeech(device='cuda')
 
-# 初始化全局变量，用于存储会话状态
-sessions = {}
 
 # LLM Chat API 配置
 API_KEY = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJUYWt3YXkuQUkiLCJVc2VyTmFtZSI6IlRha3dheS5BSSIsIkFjY291bnQiOiIiLCJTdWJqZWN0SUQiOiIxNzY4NTM2ODA1NjIxMTIxMjA4IiwiUGhvbmUiOiIxMzA4MTg1ODcwNCIsIkdyb3VwSUQiOiIxNzY4NTM2ODA1NTc0OTgzODY0IiwiUGFnZU5hbWUiOiIiLCJNYWlsIjoiIiwiQ3JlYXRlVGltZSI6IjIwMjQtMDMtMjMgMjI6Mjc6NDUiLCJpc3MiOiJtaW5pbWF4In0.ZpSw5t_90KTt0EceDqkmDE88DyB1GufB4_fwvaMLs7f7ojesh0Q4nT0jdcfX5Y9_wve4nVifoRFhHW9h-biEn_yWxilzZbGGbwY5FVf_J-Bm3GL-9V7uHOxyynrNTRfqngW9SoWyAl-F1nbRCV1doQ_3XKsvsQ1yRYvGQTTM0F4WEbG4ijIh0X9U7sS9a3IU4Nz80mc-TaK2G19cfhHvHl1rUCi_RJC-0zU4aYK7XhJRBFidBv7QquQnYvbkNKJBlNqH04_d0aBr2pX-mleYXFEujSNxS81E7LEBn146m72zCj1OZSDY4PnOuJmVukWa-LZL8rswnkC70fL6em4g9Q"
@@ -189,111 +200,200 @@ url = "https://api.minimax.chat/v1/text/chatcompletion_v2"
 #     takway_app.stream_request_receiver_process()
 #     return Response(takway_app.generate_stream_queue_data())
 
-@app.post("/chat")
-async def chat(text: str = Form(None), meta_info: str = Form(...), audio: UploadFile = File(None)):
-    meta_info_dict = json.loads(meta_info)
-    uid = meta_info_dict.get("uid")
 
-    # 获取会话信息
-    if not r.exists(uid):
-        raise HTTPException(status_code=404, detail="Session not found")
-    session_data = r.hgetall(uid)
+
+CHAT_TEXT = 0
+CHAT_AUDIO = 1
+CHAT_UNCERTAIN = -1
+
+FIRST_FRAME = 1
+CONTINUE_FRAME =2
+LAST_FRAME =3
+
+RESPONSE_TEXT = 0
+RESPONSE_AUDIO = 1
+
+@app.websocket("/chat")
+async def chat(ws: WebSocket):
+    await ws.accept()
+
+    q_recv = queue.Queue()
+    current_message = ""
+    chat_type = CHAT_UNCERTAIN
+    response_type = RESPONSE_TEXT
+    session_id = ""
+    
+    async def usr_chat_recv():
+        nonlocal current_message
+        nonlocal chat_type
+        nonlocal session_id
+        nonlocal response_type
+        while True:
+            data_json = await ws.receive_json()
+            q_recv.put(data_json)
+            if data_json["text"]:
+                if data_json["meta_info"]["voice_synthesize"]:
+                    response_type = RESPONSE_AUDIO
+                chat_type = CHAT_TEXT
+                current_message = data_json['text']
+                session_id = data_json["meta_info"]["session_id"]
+                break
+            else:
+                chat_type = CHAT_AUDIO
+
+            if data_json['meta_info']["is_end"]:
+                if data_json["meta_info"]["voice_synthesize"]:
+                    response_type = RESPONSE_AUDIO
+                session_id = data_json["meta_info"]["session_id"]
+                break
+    
+    
+    async def user_chat_send():
+        url = generate_xf_satt_url()
+        def on_open(xfws):
+            def run(*args):
+                interval = 0.04
+                status = FIRST_FRAME
+                while True:
+                    data_json = q_recv.get()
+                    if data_json["meta_info"]["is_end"]:
+                        status = LAST_FRAME
+                    if status == FIRST_FRAME:
+                        d = {"common": {"app_id": config['xfapi']['APPID']},
+                            "business": {"domain": config['satt']['domain'], "language": config['satt']['language'],"accent": config['satt']['accent'], "vad_eos": config['satt']['vad_eos']},
+                            "data": {"status": 0, "format": "audio/L16;rate=16000",
+                                    "audio": data_json["audio"],
+                                    "encoding": "raw"}}
+                        d = json.dumps(d)
+                        xfws.send(d)
+                        status = CONTINUE_FRAME
+                    elif status == CONTINUE_FRAME:
+                        d = {"data": {"status": 1, "format": "audio/L16;rate=16000",
+                                    "audio": data_json["audio"],
+                                    "encoding": "raw"}}
+                        xfws.send(json.dumps(d))
+                    elif status == LAST_FRAME:
+                        d = {"data": {"status": 2, "format": "audio/L16;rate=16000",
+                                    "audio": data_json["audio"],
+                                    "encoding": "raw"}}
+                        xfws.send(json.dumps(d))
+                        time.sleep(0.05)
+                        break;
+                    time.sleep(interval)
+                xfws.close()
+            thread.start_new_thread(run,())
+        
+        def  on_message(xfws,message):       
+            try:
+                nonlocal current_message
+                code = json.loads(message)["code"]
+                sid = json.loads(message)["sid"]
+                if code != 0:
+                    errMsg = json.loads(message)["message"]
+                    print("sid:%s call error:%s code is:%s" % (sid, errMsg, code))
+                else:
+                    data = json.loads(message)["data"]["result"]["ws"]
+                    # print(json.loads(message))
+                    result = ""
+                    for i in data:
+                        for w in i["cw"]:
+                            result += w["w"]
+                    current_message += result
+            except Exception as e:
+                print("receive msg,but parse exception:", e)
+        
+        def on_close(xfws,a,b):
+            print("### closed ###")
+
+        def on_error(xfws,error):
+            print("### error:", error)
+        
+        websocket.enableTrace(False)
+        xfws = websocket.WebSocketApp(url,on_message=on_message,on_close=on_close,on_error=on_error)
+        xfws.on_open=on_open
+        xfws.run_forever()
+
+    await usr_chat_recv()
+    if chat_type==CHAT_AUDIO:
+        await user_chat_send()
+
+    if not r.exists(session_id):
+        raise HTTPException(status_code=404,detail="Session not found")
+    print(f"user input : {current_message}")
+
+    session_data = r.hgetall(session_id)
     messages = json.loads(session_data["messages"])
-    char_id = session_data["char_id"]
     token_count = int(session_data["token"])
 
-    # 更新会话
-    r.hmset(uid, {
-        "messages": json.dumps(messages),
-        "token": token_count
+    messages.append({"role":"user","content":current_message})
+    token_count += len(current_message)
+
+    payload = json.dumps({
+        "model":"abab5.5-chat",
+        "stream":True,
+        "messages": messages,
+        "tool_choice":"auto",
+        "max_tokens":10000,
+        "temperature":0.9,
+        "top_p":1
     })
 
-    # 处理音频输入
-    if audio:
-        audio_data = await audio.read()
-        audio_path = f"temp_audio_{time.time()}.wav"
-        with open(audio_path, "wb") as f:
-            f.write(audio_data)
-        text = audio_to_text(audio_path)
-        os.remove(audio_path)  # 删除临时音频文件
 
-    # 处理文本输入
-    if text:
-        # 添加用户消息到会话历史
-        sessions[uid]["messages"].append({"role": "user", "content": text})
-        token_count += len(text)  # 更新 token 计数
-        # 调用 chat_completions 函数处理文本聊天
-        chat_completions(sessions[uid]["messages"], uid)
-
-    char_info = get_db().query(Character).filter(Character.char_id == char_id).first()
-    if not char_info:
-        raise HTTPException(status_code=404, detail="Character not found")
-
-    # 生成语音响应
-    if meta_info_dict.get("voice_synthesize",True):
-        response_audio_path = process_tts(sessions[uid]["messages"][-1]["content"])
-    else:
-        response_audio_path = ""
-
-    # 返回响应
-    response = ChatResponse(text=sessions[uid]["messages"][-1]["content"], meta_info=meta_info_dict, audio_path=response_audio_path)
-    return response
-
-
-def audio_to_text(audio_path):
-    """
-    Convert audio to text using FunAutoSpeechRecognizer.
-    """
-    if audio_path == None or "":
-        return None
-    
-    logging.info(f"audio_path:{audio_path}")
-    
-    audio_data = reshape_sample_rate(audio_path)
-    transcription_dict = asr.streaming_recognize(audio_data, auto_det_end=True)
-    
-    transcription = ''.join(transcription_dict['text'])
-    logging.info(f"transcription:{transcription}")
-        
-    return transcription
-
-def process_tts(text):
-    """
-    Convert text to speech using TextToSpeech.
-    """
-    time_stamp = time.strftime("%Y%m%d-%H%M%S")
-    directory = './audio_cache/'
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    path = directory + 'audio_' + time_stamp + '.wav'
-    text = remove_brackets_and_contents(text)
-    sr, audio = tts.synthesize(text)
-    tts.save_audio(audio, sr, file_name=path)
-    return path
-
-def chat_completions(messages, uid):
-    """
-    Call the chat API to get completions.
-    """
-    headers = { 
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
+    headers={
+        'Authorization':f"Bearer {config['llm']['API_KEY']}",
+        'Content-Type':'application/json'
     }
-    response = requests.post(
-        url=url,
-        headers=headers,
-        data=json.dumps({
-            "model": "abab5.5-chat",
-            "messages": messages,
-            "stream": False,
-            "temperature": 0.8,
-            "max_tokens": 10000,
-        }),
-    )
-    content = response.json()['choices'][0]['message']['content']
-    # 更新会话历史
-    sessions[uid]["messages"].append({"role": "assistant", "content": content})
-######################################## llm api end ########################################
+    response = requests.request("POST",url,headers=headers,data=payload)
+    
+
+    def split_string_with_punctuation(text):
+        punctuations = "，！？。"
+        result = []
+        current_sentence = ""
+        for char in text:
+            current_sentence += char
+            if char in punctuations:
+                result.append(current_sentence)
+                current_sentence = ""
+        # 判断最后一个字符是否为标点符号
+        if current_sentence and current_sentence[-1] not in punctuations:
+            # 如果最后一段不以标点符号结尾，则加入拆分数组
+            result.append(current_sentence)
+        return result
+
+    response_buf = ""
+    if response.status_code == 200:
+        for line in response.iter_lines():
+            if line:
+                if response_type == RESPONSE_TEXT:
+                    decoded_line = line.decode('utf-8')
+                    llm_message_str = decoded_line.split('data: ')[1]
+                    llm_message = json.loads(llm_message_str)
+                    if llm_message["object"]=="chat.completion.chunk":    
+                        await ws.send_json(llm_message["choices"][0]['delta']["content"])
+                    else:
+                        break
+                elif response_type == RESPONSE_AUDIO:
+                    decoded_line = line.decode('utf-8')
+                    llm_message_str = decoded_line.split('data: ')[1]
+                    llm_message = json.loads(llm_message_str)
+                    if llm_message["object"]=="chat.completion.chunk":
+                        response_buf += llm_message["choices"][0]['delta']["content"]
+                        splitted_llm_text = split_string_with_punctuation(response_buf)
+                        if splitted_llm_text[-1] and splitted_llm_text[-1] not in "，。？！":
+                            response_buf = splitted_llm_text[-1]
+                            del splitted_llm_text[-1]
+                        else:
+                            response_buf = ""
+                        if len(splitted_llm_text) !=0:
+                            for sentence in splitted_llm_text:
+                                sr,audio = tts.synthesize(sentence,0,103,0.1,0.668,1.2,False,True)
+                                await ws.send_bytes(audio)
+                    else:
+                        break
+    await ws.send_text("CLOSE_CONNECTION")
+    time.sleep(0.1)
+    await ws.close()
 
 if __name__ == "__main__":
     logger.info("Starting server...")
