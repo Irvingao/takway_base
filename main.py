@@ -23,7 +23,11 @@ import websocket
 from flask import request
 import queue
 import base64
+import time
 import io
+from datetime import datetime
+import threading
+import asyncio
 
 ######################################## log init start ########################################
 logger = logging.getLogger('takway_log')
@@ -218,8 +222,12 @@ LAST_FRAME =3
 RESPONSE_TEXT = 0
 RESPONSE_AUDIO = 1
 
+#非流式处理
 @app.post("/chat_http")
 async def chat_http(chat_http_request:ChatHttpRequest):
+    start_time = time.perf_counter()
+    logger.info("收到请求")
+
     speech = chat_http_request.speech
     session_id =  chat_http_request.session_id
     url = generate_xf_satt_url()
@@ -261,7 +269,7 @@ async def chat_http(chat_http_request:ChatHttpRequest):
                                     "audio": buf,
                                     "encoding": "raw"}}
                         ws.send(json.dumps(d))
-                        time.sleep(0.05)
+                        time.sleep(1)
                         break
                     # 模拟音频采样间隔
                     time.sleep(intervel)
@@ -287,10 +295,10 @@ async def chat_http(chat_http_request:ChatHttpRequest):
             raise HTTPException(status_code=409,detail=f"receive msg,but parse exception:{str(e)}")
     
     def on_close(ws,a,b):
-        print("### closed ###")
+        logger.info("关闭与讯飞连接")
 
     def on_error(ws,error):
-        print("### error:", error)
+        print("调用讯飞语音识别接口出现故障:", error)
     try:
         websocket.enableTrace(False)
         xfws = websocket.WebSocketApp(url,on_message=on_message,on_close=on_close,on_error=on_error)
@@ -299,7 +307,7 @@ async def chat_http(chat_http_request:ChatHttpRequest):
     except Exception as e:
         raise HTTPException(status_code=409,detail=f"error occur when calling xf api: {str(e)}" )
 
-    print(f"user message: {current_message}")
+    logger.info(f"用户信息: {current_message}")
     if not r.exists(session_id):
         raise HTTPException(status_code=404,detail="session not found")
     
@@ -313,9 +321,8 @@ async def chat_http(chat_http_request:ChatHttpRequest):
     try:
         payload = json.dumps({
             "model":"abab5.5-chat",
-            "stream":True,
+            # "stream":False,
             "messages": messages,
-            "tool_choice":"auto",
             "max_tokens":10000,
             "temperature":0.9,
             "top_p":1
@@ -326,21 +333,12 @@ async def chat_http(chat_http_request:ChatHttpRequest):
         }
         response = requests.request("POST",config["llm"]["url"],headers=headers,data=payload)
 
-        llm_response = ""
-        if response.status_code == 200:
-            for line in response.iter_lines():
-                if line:
-                    decoded_line = line.decode('utf-8')
-                    llm_message_str = decoded_line.split('data: ')[1]
-                    llm_message = json.loads(llm_message_str)
-                    if llm_message["object"]=="chat.completion.chunk":
-                        llm_response += llm_message["choices"][0]['delta']["content"]
-                else:
-                    break
+        data = json.loads(response.text)
+        llm_response = data['choices'][0]['message']['content']
         print(f"llm_response: {llm_response}")
         messages.append({"role":"assistant","content":f"{llm_response}"})
         session_data["messages"] = json.dumps(messages,ensure_ascii=False)
-        r.hmset(session_id,session_data)
+        r.hm(session_id,session_data)
     except Exception as e:
         raise HTTPException(status_code=409,detail=f"error occur when calling llm: {str(e)}" )
 
@@ -369,146 +367,99 @@ async def chat_http(chat_http_request:ChatHttpRequest):
         if response.status_code == 200:
             data = response.json()
             audio_file = data.get('audio_file', None)
+        end_time = time.perf_counter()
+        logger.info(f"处理结束")
+        logger.info(f"总耗时:{end_time-start_time}秒")
         return {"code":200,"audio_path":f"{audio_file}"}
-    except Exception as e:
-        raise HTTPException(status_code=409,detail=f"error occur when doing text to audio: {str(e)}" )
 
+    except Exception as e:
+        raise HTTPException(status_code=409,detail=f"error occur when doing text to audio: {str(e)}")
+
+
+#使用远程或本地TTS
+LOCAL_ASR = 0
+REMOTE_ASR = 1
+
+#使用远程或本地VITS
+LOCAL_TTS = 0
+REMOTE_TTS = 1
 
 
 @app.websocket("/chat")
 async def chat(ws: WebSocket):
-    await ws.accept()
+    start_time = time.perf_counter()
+    try:
+        #等待websocket连接建立
+        await ws.accept()
+        logger.info("websocket连接建立成功")
+    except Exception as e:
+        logger.error(f"websocket建立失败: {str(e)}")
+        return
 
-    q_recv = queue.Queue()
     current_message = ""
-    chat_type = CHAT_UNCERTAIN
     response_type = RESPONSE_TEXT
     session_id = ""
-    
-    async def usr_chat_recv():
-        nonlocal current_message
-        nonlocal chat_type
-        nonlocal session_id
-        nonlocal response_type
+
+    if config["main"]["asr"] == LOCAL_ASR:    #使用本地ASR
+        #asr_local = FunAutoSpeechRecognizer()
         try:
             while True:
-                data_json = await ws.receive_json()
-                q_recv.put(data_json)
-                if data_json["text"]:
+                data_json = json.loads(await ws.receive_text())
+                if data_json["text"]: #若文字输入不为空，则表示该输入为文字输入
                     if data_json["meta_info"]["voice_synthesize"]:
-                        response_type = RESPONSE_AUDIO
-                    chat_type = CHAT_TEXT
+                        response_type = RESPONSE_AUDIO #查看voice_synthesize判断返回类型
                     current_message = data_json['text']
-                    session_id = data_json["meta_info"]["session_id"]
                     break
-                else:
-                    chat_type = CHAT_AUDIO
 
-                if data_json['meta_info']["is_end"]:
+                if not data_json['meta_info']['is_end']: #还在发
+                    asr_result = asr.streaming_recognize(data_json["audio"])
+                    current_message += ''.join(asr_result['text'])
+                else: #发完了
+                    asr_result = asr.streaming_recognize(data_json["audio"],is_end=True)
+                    session_id = data_json["meta_info"]["session_id"]
+                    current_message += ''.join(asr_result['text'])
                     if data_json["meta_info"]["voice_synthesize"]:
-                        response_type = RESPONSE_AUDIO
-                    session_id = data_json["meta_info"]["session_id"]
+                        response_type = RESPONSE_AUDIO #查看voice_synthesize判断返回类型
                     break
+
         except Exception as e:
-            error_message = {"type":"error","code":500,"msg":f"error occur when receiving data from front: {str(e)}"}
-            print(error_message)
-            ws.send_text(json.dumps(error_message))
-    
-    
-    async def user_chat_send():
-        url = generate_xf_satt_url()
-        def on_open(xfws):
-            def run(*args):
-                interval = 0.04
-                status = FIRST_FRAME
-                while True:
-                    data_json = q_recv.get()
-                    if data_json["meta_info"]["is_end"]:
-                        status = LAST_FRAME
-                    if status == FIRST_FRAME:
-                        d = {"common": {"app_id": config['xfapi']['APPID']},
-                            "business": {"domain": config['satt']['domain'], "language": config['satt']['language'],"accent": config['satt']['accent'], "vad_eos": config['satt']['vad_eos']},
-                            "data": {"status": 0, "format": "audio/L16;rate=16000",
-                                    "audio": data_json["audio"],
-                                    "encoding": "raw"}}
-                        d = json.dumps(d)
-                        xfws.send(d)
-                        status = CONTINUE_FRAME
-                    elif status == CONTINUE_FRAME:
-                        d = {"data": {"status": 1, "format": "audio/L16;rate=16000",
-                                    "audio": data_json["audio"],
-                                    "encoding": "raw"}}
-                        xfws.send(json.dumps(d))
-                    elif status == LAST_FRAME:
-                        d = {"data": {"status": 2, "format": "audio/L16;rate=16000",
-                                    "audio": data_json["audio"],
-                                    "encoding": "raw"}}
-                        xfws.send(json.dumps(d))
-                        time.sleep(0.05)
-                        break
-                    time.sleep(interval)
-                xfws.close()
-            thread.start_new_thread(run,())
-        
-        def  on_message(xfws,message):       
-            try:
-                nonlocal current_message
-                code = json.loads(message)["code"]
-                sid = json.loads(message)["sid"]
-                if code != 0:
-                    errMsg = json.loads(message)["message"]
-                    print("sid:%s call error:%s code is:%s" % (sid, errMsg, code))
-                else:
-                    data = json.loads(message)["data"]["result"]["ws"]
-                    # print(json.loads(message))
-                    result = ""
-                    for i in data:
-                        for w in i["cw"]:
-                            result += w["w"]
-                    current_message += result
-            except Exception as e:
-                print("receive msg,but parse exception:", e)
-        
-        def on_close(xfws,a,b):
-            print("### closed ###")
+            error_info = f"接收用户消息错误: {str(e)}"
+            error_message = {"type":"error","code":"500","msg":error_info}
+            logger.error(error_info)
+            await ws.send_text(json.dumps(error_message,ensure_ascii=False))
+            await ws.close()
+            return
 
-        def on_error(xfws,error):
-            print("### error:", error)
-        
-        websocket.enableTrace(False)
-        xfws = websocket.WebSocketApp(url,on_message=on_message,on_close=on_close,on_error=on_error)
-        xfws.on_open=on_open
-        xfws.run_forever()
-
-    await usr_chat_recv()
-    if chat_type==CHAT_AUDIO:
-        await user_chat_send()
-
-
-
+    elif config["main"]["asr"] == REMOTE_ASR:
+        logger.info("REMOTE_ASR暂不支持")
+        await ws.close()
+        return
+    logger.info(f"用户消息: {current_message}")
+            
     if not r.exists(session_id):
-        error_message = {"type":"error","code":500,"msg":f"error occur when getting session_data: session_id not found"}
-        await ws.send_text(json.dumps(error_message))
+        error_info = f"获取session错误: session not found"
+        error_message = {"type":"error","code":500,"msg":error_info}
+        logger.error(error_info)
+        await ws.send_text(json.dumps(error_message,ensure_ascii=False))
 
     try:
-        print(f"user input : {current_message}")
-        msg_input = {"type":"debug_msg","code":200,"msg":f"receieve from user: {current_message}"}
+        logger.info(f"用户输入 : {current_message}")
+        msg_input = {"type":"info","code":200,"msg":f"receieve from user: {current_message}"}
         await ws.send_text(json.dumps(msg_input,ensure_ascii=False))
 
         session_data = r.hgetall(session_id)
-        print(f"session_data = {session_data}")   
         messages = json.loads(session_data["messages"])
         token_count = int(session_data["token"])
 
         messages.append({"role":"user","content":current_message})
         token_count += len(current_message)
-
     except Exception as e:
-        error_message = {"type":"error","code":500,"msg":f"error occur when haddling session data: {str(e)}"}
-        print(error_message)
-        await ws.send_text(json.dumps(error_message))
-
-
+        error_info = f"处理session时发生错误: {str(e)}"
+        error_message = {"type":"error","code":500,"msg":error_info}
+        logger.error(error_info)
+        await ws.send_text(json.dumps(error_message,ensure_ascii=False))
+        await ws.close()
+        return
     try:
         payload = json.dumps({
             "model":"abab5.5-chat",
@@ -525,9 +476,12 @@ async def chat(ws: WebSocket):
         }
         response = requests.request("POST",config["llm"]["url"],headers=headers,data=payload)
     except Exception as e:
-        error_message = {"type":"error","code":500,"msg":f"error occur when sending data to the llm: {str(e)}"}
-        print(error_message)
-        await ws.send_text(json.dumps(error_message))
+        error_info = f"发送信息给大模型时发生错误: {str(e)}"
+        error_message ={"type":"error","code":500,"msg":error_info} 
+        logger.error(error_info)
+        await ws.send_text(json.dumps(error_message,ensure_ascii=False))
+        await ws.close()
+        return
 
     def split_string_with_punctuation(text):
         punctuations = "，！？。"
@@ -545,59 +499,73 @@ async def chat(ws: WebSocket):
         return result
 
     llm_response = ""
+    response_buf = ""
+    def parseChunkDelta(chunk) :
+        decoded_data = chunk.decode('utf-8')
+        parsed_data = json.loads(decoded_data[6:])
+        if 'delta' in parsed_data['choices'][0]:
+            delta_content = parsed_data['choices'][0]['delta']
+            return delta_content['content']
+        else:
+            return ""
     try:
-        response_buf = ""
-        if response.status_code == 200:
-            for line in response.iter_lines():
-                if line:
-                    if response_type == RESPONSE_TEXT:
-                        decoded_line = line.decode('utf-8')
-                        llm_message_str = decoded_line.split('data: ')[1]
-                        llm_message = json.loads(llm_message_str)
-                        if llm_message["object"]=="chat.completion.chunk":
-                            llm_response += llm_message["choices"][0]['delta']["content"]
-                            text_message = {"type":"text","code":200,"msg":llm_message["choices"][0]['delta']["content"]}    
-                            await ws.send_text(json.dumps(text_message,ensure_ascii=False))
-                        else:
-                            break
-                    elif response_type == RESPONSE_AUDIO:
-                        decoded_line = line.decode('utf-8')
-                        llm_message_str = decoded_line.split('data: ')[1]
-                        llm_message = json.loads(llm_message_str)
-                        if llm_message["object"]=="chat.completion.chunk":
-                            llm_response += llm_message["choices"][0]['delta']["content"]
-                            response_buf += llm_message["choices"][0]['delta']["content"]
-                            splitted_llm_text = split_string_with_punctuation(response_buf)
-                            if splitted_llm_text[-1] and splitted_llm_text[-1] not in "，。？！":
-                                response_buf = splitted_llm_text[-1]
-                                del splitted_llm_text[-1]
-                            else:
-                                response_buf = ""
-                            if len(splitted_llm_text) !=0:
-                                for sentence in splitted_llm_text:
-                                    sr,audio = tts.synthesize(sentence,0,103,0.1,0.668,1.2,False,False)
-                                    audio_message = {"type":"audio","code":200,"msg":base64.b64encode(audio).decode('utf-8')}
-                                    await ws.send_text(json.dumps(audio_message))
-                        else:
-                            break
+        if config["main"]['tts'] == LOCAL_TTS:
+            if response.status_code == 200:
+                for chunk in response.iter_lines():
+                    if chunk:
+                        if response_type == RESPONSE_AUDIO:
+                            chunk_data = parseChunkDelta(chunk)
+                            llm_response += chunk_data
+                            response_buf += chunk_data
+                            split_buf = split_string_with_punctuation(response_buf)
+                            response_buf = ""
+                            if len(split_buf) != 0:
+                                for sentence in split_buf:
+                                    sr,audio = tts.synthesize(sentence,0,103,0.1,0.668,1.2,return_bytes=True)
+                                    text_response = {"type":"text","code":200,"msg":sentence}
+                                    await ws.send_text(json.dumps(text_response,ensure_ascii=False))
+                                    await ws.send_bytes(audio)
+                        if response_type == RESPONSE_TEXT:
+                            chunk_data = parseChunkDelta(chunk)
+                            llm_response += chunk_data
+                            text_response = {"type":"text","code":200,"msg":chunk_data}
+                            await ws.send_text(json.dumps(text_response,ensure_ascii=False))
+
+        elif config["main"]['tts'] == REMOTE_TTS:
+            error_info = f"暂不支持远程音频合成"
+            error_message = {"type":"error","code":500,"msg":error_info}
+            logger.error(error_info)
+            await ws.send_text(json.dumps(error_message,ensure_ascii=False))
+            await ws.close()
+            return
+
+        logger.info(f"llm消息: {llm_response}")
     except Exception as e:
-        error_message = {"type":"error","code":500,"msg":f"error occur when responding to the clint: {str(e)}"}
-        print(error_message)
-        await ws.send_text(json.dumps(error_message))
+        error_info = f"音频合成与向前端返回时错误: {str(e)}"
+        error_message = {"type":"error","code":500,"msg":error_info}
+        logger.error(error_info)
+        await ws.send_text(json.dumps(error_message,ensure_ascii=False))
+        await ws.close()
+        return
     try:
         messages.append({'role':'assistant',"content":llm_response})
         token_count += len(llm_response)
         session_data["messages"] = json.dumps(messages)
         session_data["token"] = str(token_count)
-        
         r.hmset(session_id,session_data)
     except Exception as e:
-        error_message = {"type":"error","code":500,"msg":f"error occur when updating session: {str(e)}"}
-        print(error_message)
-        await ws.send_text(json.dumps(error_message))
+        error_info = f"更新session时错误: {str(e)}"
+        error_message = {"type":"error","code":500,"msg":error_info}
+        logger.info(error_info)
+        await ws.send_text(json.dumps(error_message,ensure_ascii=False))
+        await ws.close()
+        return
     
     close_message = {"type":"close","code":200,"msg":""}
-    await ws.send_text(json.dumps(close_message))
+    logger.info("连接关闭")
+    await ws.send_text(json.dumps(close_message,ensure_ascii=False))
+    end_time = time.perf_counter()
+    logger.info(f"总耗时{start_time-end_time}")
     time.sleep(0.5)
     await ws.close()
 
