@@ -1,11 +1,14 @@
 import asyncio
-import time
+from takway.audio_utils import AudioPlayer
 import websockets
 import json
 import base64
-
+from datetime import datetime
+import io
 # 假设您的PCM文件路径是 'your_pcm_file.pcm'
-pcm_file_path = 'iat_pcm_16k.pcm'
+from pydub import AudioSegment
+from pydub.playback import play
+pcm_file_path = 'example_recording.wav'
 
 def read_pcm_file_in_chunks(chunk_size):
     with open(pcm_file_path, 'rb') as pcm_file:
@@ -16,11 +19,11 @@ def read_pcm_file_in_chunks(chunk_size):
             yield data
 
 data = {
-    "text": "你好啊，可以给我介绍一下你自己吗？",
+    "text": "",
     "audio": "",
     "meta_info": {
-        "session_id":"88f1beae-fd7f-4490-91e3-a4b46112ad05",
-        "stream": True,
+        "session_id":"7d0546dd-36b6-4bc2-8008-fc77c78aaa14",
+        "stream": False,
         "voice_synthesize": True,
         "is_end": False,
         "encoding": "raw"
@@ -38,7 +41,7 @@ async def send_audio_chunk(websocket, chunk):
     await websocket.send(message)
 
 async def send_json():
-    async with websockets.connect('ws://114.214.236.207:7878/chat') as websocket:
+    async with websockets.connect('ws://121.41.224.27:8000/chat') as websocket:
         chunks = read_pcm_file_in_chunks(2048)  # 读取PCM文件并生成数据块
         for chunk in chunks:
             await send_audio_chunk(websocket, chunk)
@@ -49,20 +52,20 @@ async def send_json():
         await send_audio_chunk(websocket, b'')  # 发送空数据块表示结束
         # 等待并打印接收到的数据
 
-        if data["meta_info"]["voice_synthesize"]:
-            while True:
-                bytes = await websocket.recv()
-                #这里收到音频二进制流处理
-                print(bytes)
-                if bytes == "CLOSE_CONNECTION":
+        print("等待接收:",datetime.now())
+        audio_bytes = b''
+        while True:
+            data_ws = await websocket.recv()
+            try:
+                message_json = json.loads(data_ws)
+                print(message_json)  # 打印接收到的消息
+                if message_json["type"] == "close":
                     break  # 如果没有接收到消息，则退出循环
-                time.sleep(0.04)
-        else:
-            while True:
-                message = await websocket.recv()  #
-                if message == "CLOSE_CONNECTION":
-                    break  # 如果没有接收到消息，则退出循环
-                print(message)  # 打印接收到的消息
+            except Exception as e:
+                audio_bytes += data_ws
+                print(e)
+        print("接收完毕:", datetime.now())
+
 
         await asyncio.sleep(0.04)  # 等待0.04秒后断开连接
         await websocket.close()

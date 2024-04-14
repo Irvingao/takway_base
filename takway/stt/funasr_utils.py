@@ -6,6 +6,7 @@
 import io
 import time
 import numpy as np
+from takway.common_utils import decode_str2bytes
 from funasr import AutoModel
 
 from takway.stt.base_stt import STTBase
