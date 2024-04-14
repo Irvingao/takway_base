@@ -1,3 +1,13 @@
+#使用远程或本地TTS
+# LOCAL_ASR = 0
+# REMOTE_ASR = 1
+
+# #使用远程或本地VITS
+# LOCAL_TTS = 0
+# REMOTE_TTS = 1
+
+
+
 config={
     "xfapi":{ #讯飞API接口参数
         "APPID": "fb646f00",
@@ -29,7 +39,10 @@ config={
         "url" : "https://api.minimax.chat/v1/t2a_pro",
         "group_id":"1759482180095975904"
     },
+    
     "main":{
-        "port":8000
+        "port":8000,
+        "asr": 0,
+        "tts":0,
     }
 }
