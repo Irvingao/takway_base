@@ -75,7 +75,7 @@ class BaseAudio:
     def __init__(self, 
                  input=False, 
                  output=False, 
-                 CHUNK=2048, 
+                 CHUNK=1024, 
                  FORMAT=pyaudio.paInt16, 
                  CHANNELS=1, 
                  RATE=16000,
@@ -153,8 +153,16 @@ class BaseAudio:
 
     
     def write_wave_io(self, filename, frames):
-        """Write audio data to a file-like object."""
+        """
+        Write audio data to a file-like object.
+        
+        Args:
+            filename: [string or file-like object], file path or file-like object to write
+            frames: list of bytes, audio data to write
+        """
         wf = wave.open(filename, 'wb')
+        
+        # 设置WAV文件的参数
         wf.setnchannels(self.CHANNELS)
         wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
         wf.setframerate(self.RATE)
@@ -198,9 +206,13 @@ class AudioPlayer(BaseAudio):
 class BaseRecorder(BaseAudio):
     def __init__(self, 
                  input=True, 
+                 base_chunk_size=None, 
                  RATE=16000, 
                  **kwargs):
         super().__init__(input=input, RATE=RATE, **kwargs)
+        self.base_chunk_size = base_chunk_size
+        if base_chunk_size is None:
+            self.base_chunk_size = self.CHUNK
 
     def record(self, 
                filename,
@@ -231,7 +243,7 @@ class HDRecorder(BaseRecorder):
                  hd_trigger='keyboard', 
                  keyboard_key='space',
                  voice_trigger=True,
-                 hd_chunk_size=2048,
+                 hd_chunk_size=None,
                  hd_detect_threshold=50,
                  **kwargs):
         super().__init__(**kwargs)
@@ -239,7 +251,10 @@ class HDRecorder(BaseRecorder):
         
         self.hd_trigger = hd_trigger
         self.voice_trigger = voice_trigger
+        
         self.hd_chunk_size = hd_chunk_size
+        if hd_chunk_size is None:
+            self.hd_chunk_size = self.base_chunk_size
         
         if hd_trigger == 'keyboard':
             self.keyboard_key = keyboard_key
@@ -284,6 +299,7 @@ class HDRecorder(BaseRecorder):
                 recording = False
                 raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
         return self.write_wave(self.filename, frames, return_type)
+    
     
     '''
     def record(self, return_type='bytes', queue=None):
@@ -440,6 +456,7 @@ class PicovoiceRecorder(VADRecorder):
                  sensitivities=0.5, 
                  library_path=None,
                  **kwargs):
+        
         super().__init__(**kwargs)
         
         pico_cfg = dict(
