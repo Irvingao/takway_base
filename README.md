@@ -135,15 +135,14 @@ Takway.AI
 
 请根据 `Server`和 `Client`的不同环境，按照以下步骤进行安装和运行。
 
-
 ### 2. 客户端 `Client`前端
 
 #### (1) 安装依赖项：
 
 ```
 sudo apt-get update
-sudo apt-get install pyhton3-pip
-sudo apt-get install cmake g++ gcc portaudio19-dev
+sudo apt-get install cmake g++ gcc
+sudo apt-get install pyhton3-pip python3-dev portaudio19-dev
 ```
 
 #### (2) 克隆项目到本地并安装依赖：
@@ -279,7 +278,6 @@ git clone https://huggingface.co/spaces/zomehwh/vits-uma-genshin-honkai.git
   git clone https://www.modelscope.cn/jayhust/internlm2-chat-1_8b.git
   ```
   </details>
-
 
 ## 📚基础模块使用
 

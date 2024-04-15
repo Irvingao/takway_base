@@ -1,12 +1,5 @@
-Cython
-librosa
 numpy
-phonemizer
 Unidecode
-ffmpeg
-jamo
-cn2an
-jieba
 pyaudio
 keyboard
 websocket-client
