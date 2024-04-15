@@ -85,7 +85,10 @@ class Client:
             data=self.gen_request_data(**kwargs), stream=True)
 
 
+
+
 from takway.roleplay_utils import *
+
 
 class CharacterClient(Client, SparkRolyPlayingFunction):
     def __init__(self, 
@@ -128,3 +131,75 @@ class CharacterClient(Client, SparkRolyPlayingFunction):
                 }
             }
         return json.dumps(request_data) + '\n'
+
+
+
+# ############################################ #
+# ############  WebSocket Client  ############# #
+def check_audio_type(data, return_type='base64'):
+    '''
+    Check if the data type is valid.
+    '''
+    assert return_type in ['bytes', 'base64']
+    if return_type == 'base64':
+        if isinstance(data, bytes):
+            return encode_bytes2str(data)
+    elif return_type == 'bytes':
+        if isinstance(data, str):
+            return decode_str2bytes(data)
+    else:
+        raise ValueError('Invalid data type: {}.'.format(type(data)))
+
+import websocket
+from websocket import create_connection
+
+class BaseWebSocketClient:
+    def __init__(self, server_url):
+        self.server_url = server_url
+        
+    def wakeup_client(self):
+        '''
+        Start the client.
+        '''
+        self.websocket = create_connection(self.server_url)
+        
+    def send_per_data(self, 
+        session_id: str,
+        text: str = '',
+        audio: bytes = b'',
+        stream: bool = True,
+        voice_synthesize: bool = False,
+        is_end: bool = False,
+        encoding: str = 'base64',
+        ):
+        '''
+        Send data to server.
+        
+        Args:
+            data: bytes, data to be sent to server.
+        '''
+                
+        self.websocket.send(json.dumps({
+            "text": text,
+            "audio": check_audio_type(audio, return_type=encoding),
+            "meta_info": {
+                "session_id": session_id,
+                "stream": stream,
+                "voice_synthesize": voice_synthesize,
+                "is_end": is_end,
+                "encoding": encoding,
+            }}))
+        
+    def receive_per_data(self):
+        try:
+            recv_data = self.websocket.recv()
+        except websocket._exceptions.WebSocketConnectionClosedException:
+            return None, None
+        try:
+            recv_data = json.loads(recv_data)
+        except json.JSONDecodeError as e:
+            print(f"JSONDecodeError: {e}")
+        except Exception as e:
+            # print(f"receive_per_data error: {e}")
+            assert isinstance(recv_data, bytes), ValueError(f"Received data is not bytes, got {type(recv_data)}.")
+        return recv_data, type(recv_data)
