@@ -2,7 +2,6 @@ import io
 import os
 import time
 import pyaudio
-import librosa
 import wave
 import json
 import warnings
@@ -32,7 +31,8 @@ def play_audio(audio_data, type='base64'):
     stream.close()
     p.terminate()
 
-
+"""
+import librosa
 def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
     '''
     Args:
@@ -65,6 +65,7 @@ def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
         audio_data_resampled = np.int16(audio_data_resampled * np.iinfo(np.int16).max)
     
     return audio_data_resampled
+"""
 
 
 # ####################################################### #
