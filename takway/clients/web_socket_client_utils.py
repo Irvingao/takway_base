@@ -20,7 +20,7 @@ import pvporcupine
 
 from takway.apps.data_struct import QueueIterator
 from takway.common_utils import *
-from takway.audio_utils import PicovoiceRecorder
+from takway.audio_utils import PicovoiceRecorder, HDRecorder
 from takway.clients.client_utils import BaseWebSocketClient
 from takway.audio_utils import AudioPlayer
 
@@ -113,7 +113,10 @@ class WebSocketClinet:
         
         min_stream_record_time = self.recorder_args.pop('min_stream_record_time')
         voice_trigger = self.recorder_args.pop('voice_trigger')
-        recorder = PicovoiceRecorder(**self.recorder_args)
+        if voice_trigger:
+            recorder = PicovoiceRecorder(**self.recorder_args)
+        else:
+            recorder = HDRecorder(**self.recorder_args)
         recorder.min_stream_record_time = min_stream_record_time
         
         # shared data struct:
