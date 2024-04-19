@@ -27,18 +27,20 @@ from takway.audio_utils import AudioPlayer
 
 class WebSocketClinet:
     def __init__(self, 
+                 board, 
                  server_args, 
                  recorder_args, 
+                 player_args, 
                  log_args, 
-                 video_args=None, 
                  excute_args=None, 
                  ):
+        self.board = board
         # server_args
         self.server_args = server_args
         # recorder_args
         self.recorder_args = recorder_args
-        # video_args
-        self.video_args = video_args
+        # player_args
+        self.player_args = player_args
         # excute_args
         self.excute_args = excute_args
         # log_args
@@ -237,6 +239,9 @@ class WebSocketClinet:
             
             if not recorder.is_wakeup(data):
                 continue
+            
+            if self.board == 'orangepi':
+                recorder.hardware.set_led1_on()
             # wake up
             is_bgn = True
             _frames = 0
@@ -300,6 +305,8 @@ class WebSocketClinet:
                         # print(f"Tatal frames: {_total_frames*record_chunk_size}, valid frame: {_frames*record_chunk_size}, valid RATE: {_frames/_total_frames*100:.2f}%, {_frames*record_chunk_size/recorder.RATE} sec.")
                         # print("End recording.")
                         break
+            if self.board == 'orangepi':
+                recorder.hardware.set_led1_off()
     
     
     def stream_record_process(self, 
@@ -376,7 +383,7 @@ class WebSocketClinet:
                     self.logger.info(response)  # 打印接收到的消息
                     # print(f"recv json time: {datetime.now()}")
                 elif data_type == bytes:
-                    self.logger.info(f"recv bytes time: {datetime.now()}")
+                    # self.logger.info(f"recv bytes time: {datetime.now()}")
                     self.audio_play_queue.put(('audio_bytes', response))
                 elif data_type == None:
                     break  # 如果没有接收到消息，则退出循环
@@ -388,7 +395,7 @@ class WebSocketClinet:
             audio_play_queue: multiprocessing.Queue, audio play queue
             share_time_dict: multiprocessing.Manager.dict, shared time dict
         '''
-        audio_player = AudioPlayer(output_device_index=self.recorder_args['output_device_index'], frames_per_buffer=11025)
+        audio_player = AudioPlayer(**self.player_args)
         self.logger.info("Audio play process started.")
         while True:
             item = self.audio_play_queue.get()
