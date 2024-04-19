@@ -1,15 +1,25 @@
 from takway.clients.web_socket_client_utils import WebSocketClinet
 import pvporcupine
 import pyaudio
+import platform
+
 
 if __name__ == '__main__':
     
-    server_url = 'ws://121.41.224.27:8000/chat'
+    # server_url = 'ws://121.41.224.27:8000/chat'
     # server_url = 'ws://39.107.254.69:33089/chat'
+    server_url = 'ws://114.214.236.207:7878/chat/streaming'
     
-    # board = None
-    board = 'v329'
-    board = 'orangepi'
+    
+    session_id = 'd343970d-cd81-4abc-b99a-413e3dcc9fd2'
+    
+    system = platform.system()
+    if system == 'Windows':
+        print("WebSocketClinet runs on Windows system.")
+        board = None
+    elif system == 'Linux':
+        # board = 'v329'
+        board = 'orangepi'
     
     mircophone_device = None
     speaker_device = None
@@ -52,8 +62,6 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     # server params
-    parser.add_argument('--server_url', type=str, default=server_url, help='Server url')
-    
     
     parser.add_argument('--voice_trigger', type=bool, default=True, help='Voice trigger')
     # recorder paramters
@@ -112,7 +120,8 @@ if __name__ == '__main__':
     
     # sort out args and params
     server_args = {
-       'server_url': args.server_url,
+       'server_url': server_url,
+       'session_id': session_id,
     }
     
     recorder_args = {

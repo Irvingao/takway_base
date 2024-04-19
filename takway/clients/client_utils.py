@@ -154,8 +154,9 @@ import websocket
 from websocket import create_connection
 
 class BaseWebSocketClient:
-    def __init__(self, server_url):
+    def __init__(self, server_url, session_id):
         self.server_url = server_url
+        self.session_id = session_id
         
     def wakeup_client(self):
         '''
@@ -164,7 +165,6 @@ class BaseWebSocketClient:
         self.websocket = create_connection(self.server_url)
         
     def send_per_data(self, 
-        session_id: str,
         text: str = '',
         audio: bytes = b'',
         stream: bool = True,
@@ -183,7 +183,7 @@ class BaseWebSocketClient:
             "text": text,
             "audio": check_audio_type(audio, return_type=encoding),
             "meta_info": {
-                "session_id": session_id,
+                "session_id": self.session_id,
                 "stream": stream,
                 "voice_synthesize": voice_synthesize,
                 "is_end": is_end,

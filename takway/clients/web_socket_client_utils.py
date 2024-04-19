@@ -344,7 +344,7 @@ class WebSocketClinet:
     
     def web_socket_client_process(self):
         
-        client = BaseWebSocketClient(self.server_args['server_url'])
+        client = BaseWebSocketClient(self.server_args['server_url'], self.server_args['session_id'])
         self.logger.info("Web socket client process started.")
         print("Web socket client process started.")
         
@@ -362,7 +362,6 @@ class WebSocketClinet:
                     audio_dict = queue_data[1]
                 
                     client.send_per_data(
-                        session_id='3c41260f-3470-451a-b378-55551b698981',
                         audio=audio_dict['frames'],
                         stream=True,
                         voice_synthesize=True,
