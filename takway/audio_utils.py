@@ -31,22 +31,14 @@ def play_audio(audio_data, type='base64'):
     stream.close()
     p.terminate()
 
-"""
+'''
 import librosa
 def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
-    '''
-    Args:
-        audio: numpy.ndarray or tuple, (sr_original, audio_data), original audio data
-        sr_target: int, target sample rate
-
-    return:
-        audio_data_resampled: numpy.ndarray, reshaped audio data with target sample rate
-    '''
     # 获取原始采样率和音频数据
     if isinstance(audio, tuple):
         sr_original, audio_data = audio
-    else:
-        audio_data = audio
+    elif isinstance(audio, bytes):
+        audio_data = np.frombuffer(audio, dtype=np.int16)
     assert sr_original is not None, f"sr_original should be provided if audio is a \
         numpy.ndarray, but got sr_original `{sr_original}`."
     
@@ -64,8 +56,22 @@ def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
     if audio_data_resampled.dtype == np.dtype('float32'):
         audio_data_resampled = np.int16(audio_data_resampled * np.iinfo(np.int16).max)
     
+    # If the input was bytes, return the resampled data as bytes
+    if isinstance(audio, bytes):
+        audio_data_resampled = audio_data_resampled.tobytes()
+        
     return audio_data_resampled
-"""
+
+# Example usage:
+# If your audio data is in bytes:
+# audio_bytes = b'...'  # Your audio data as bytes
+# audio_data_resampled = reshape_sample_rate(audio_bytes)
+
+# If your audio data is in numpy int16:
+# audio_int16 = np.array([...], dtype=np.int16)  # Your audio data as numpy int16
+# audio_data_resampled = reshape_sample_rate(audio_int16)
+'''
+
 
 
 # ####################################################### #
@@ -74,13 +80,16 @@ def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
 
 class BaseAudio:
     def __init__(self, 
+                 filename=None, 
                  input=False, 
                  output=False, 
                  CHUNK=1024, 
                  FORMAT=pyaudio.paInt16, 
                  CHANNELS=1, 
                  RATE=16000,
-                 filename=None):
+                 input_device_index=None,
+                 output_device_index=None,
+                 **kwargs):
         self.CHUNK = CHUNK
         self.FORMAT = FORMAT
         self.CHANNELS = CHANNELS
@@ -94,7 +103,10 @@ class BaseAudio:
                                   rate=RATE,
                                   input=input,
                                   output=output,
-                                  frames_per_buffer=CHUNK)
+                                  input_device_index=input_device_index,
+                                  output_device_index=output_device_index,
+                                  frames_per_buffer=CHUNK,
+                                  **kwargs)
     
     def load_audio_file(self, wav_file):
         with wave.open(wav_file, 'rb') as wf:
@@ -222,7 +234,7 @@ class BaseRecorder(BaseAudio):
         print("Recording started.")
         frames = []
         for i in range(0, int(self.RATE / self.CHUNK * duration)):
-            data = self.stream.read(self.CHUNK)
+            data = self.stream.read(self.CHUNK, exception_on_overflow=False)
             frames.append(data)
         print("Recording stopped.")
         return self.write_wave(filename, frames, return_type)
