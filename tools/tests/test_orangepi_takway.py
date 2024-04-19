@@ -6,4 +6,4 @@ if __name__ == '__main__':
     board = OrangePi()
     
     while True:
-        print(f"{datetime.now()}: {board.is_hardware_pressed()}")
+        print(f"{datetime.now()}: {board.is_hardware_pressed}")
