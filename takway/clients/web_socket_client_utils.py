@@ -391,7 +391,7 @@ class WebSocketClinet:
             audio_play_queue: multiprocessing.Queue, audio play queue
             share_time_dict: multiprocessing.Manager.dict, shared time dict
         '''
-        audio_player = AudioPlayer(output_device_index=self.recorder_args['output_device_index'])
+        audio_player = AudioPlayer(output_device_index=self.recorder_args['output_device_index'], frames_per_buffer=11025)
         self.logger.info("Audio play process started.")
         while True:
             item = self.audio_play_queue.get()

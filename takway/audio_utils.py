@@ -109,7 +109,6 @@ class BaseAudio:
                                   output=output,
                                   input_device_index=input_device_index,
                                   output_device_index=output_device_index,
-                                  frames_per_buffer=CHUNK,
                                   **kwargs)
     
     def load_audio_file(self, wav_file):
