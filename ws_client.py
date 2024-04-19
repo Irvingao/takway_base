@@ -10,8 +10,9 @@ if __name__ == '__main__':
     # server_url = 'ws://39.107.254.69:33089/chat'
     server_url = 'ws://114.214.236.207:7878/chat/streaming'
     
-    
     session_id = 'd343970d-cd81-4abc-b99a-413e3dcc9fd2'
+    
+    ACCESS_KEY = 'hqNqw85hkJRXVjEevwpkreB8n8so3w9JPQ27qnCR5qTH8a3+XnkZTA=='
     
     system = platform.system()
     if system == 'Windows':
@@ -65,7 +66,6 @@ if __name__ == '__main__':
     
     parser.add_argument('--voice_trigger', type=bool, default=True, help='Voice trigger')
     # recorder paramters
-    ACCESS_KEY = 'hqNqw85hkJRXVjEevwpkreB8n8so3w9JPQ27qnCR5qTH8a3+XnkZTA=='
     parser.add_argument('--access_key',default=ACCESS_KEY,
         help='AccessKey obtained from Picovoice Console (https://console.picovoice.ai/)')
     

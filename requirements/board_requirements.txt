@@ -4,3 +4,4 @@ pyaudio
 keyboard
 websocket-client
 pvporcupine
+requests
