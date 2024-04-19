@@ -110,12 +110,14 @@ class WebSocketClinet:
             trigger_queue: multiprocessing.Queue, trigger queue
             client_queue: multiprocessing.Queue, client queue
         """
-        
         min_stream_record_time = self.recorder_args.pop('min_stream_record_time')
         voice_trigger = self.recorder_args.pop('voice_trigger')
         if voice_trigger:
             recorder = PicovoiceRecorder(**self.recorder_args)
         else:
+            voice_keys = ['access_key', 'keywords', 'keyword_paths', 'model_path','sensitivities', 'library_path']
+            for key in voice_keys:
+                self.recorder_args.pop(key)
             recorder = HDRecorder(**self.recorder_args)
         recorder.min_stream_record_time = min_stream_record_time
         
@@ -389,7 +391,7 @@ class WebSocketClinet:
             audio_play_queue: multiprocessing.Queue, audio play queue
             share_time_dict: multiprocessing.Manager.dict, shared time dict
         '''
-        audio_player = AudioPlayer()
+        audio_player = AudioPlayer(output_device_index=self.recorder_args['output_device_index'])
         self.logger.info("Audio play process started.")
         while True:
             item = self.audio_play_queue.get()
