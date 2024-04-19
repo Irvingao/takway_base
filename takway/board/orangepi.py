@@ -1,6 +1,3 @@
-import keyboard
-import time
-
 from takway.board.base_hd import BaseHardware
 
 import datetime
