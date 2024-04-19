@@ -5,11 +5,18 @@ import pyaudio
 if __name__ == '__main__':
     
     server_url = 'ws://121.41.224.27:8000/chat'
+    # server_url = 'ws://39.107.254.69:33089/chat'
     
-    try:
+    # board = None
+    board = 'v329'
+    board = 'orangepi'
+    
+    mircophone_device = None
+    speaker_device = None
+    
+    
+    if board == 'v329':
         import gpiod as gpio
-        emo_dir="ResizedEmoji"
-        
         
         keywords = ['hey google', 'ok google']
         keyword_paths = None
@@ -21,13 +28,19 @@ if __name__ == '__main__':
         
         hd_trigger = 'button'
         player = 'maixsense'
-        # server_url = 'http://192.168.1.106:5000/character-chat'
-        emo_enable = False
+    elif board == 'orangepi':
         
-    except:
-        # model_path=r"G:\WorkSpace\CodeWorkspace\GPT_projects\vits_project\vits-uma-genshin-honkai\vosk-model-small-cn-0.22"
-        emo_dir=r"G:\WorkSpace\CodeWorkspace\GPT_projects\vits_project\vits-uma-genshin-honkai\ResizedEmoji"
+        keywords = ['hey google', 'ok google']
+        keyword_paths = None
+        model_path = None
         
+        hd_trigger = 'button'
+        
+        mircophone_device = 2
+        speaker_device = 2
+        
+    else:
+
         keywords = ['hey google', 'ok google']
         keyword_paths = None
         model_path = None
@@ -35,22 +48,13 @@ if __name__ == '__main__':
         hd_trigger = 'keyboard'
         player = 'opencv'
         
-        # server_url = 'http://127.0.0.1:5000/character-chat'
-        # server_url = 'http://10.10.42.227:5000/character-chat'
-        
-        emo_enable = False
-        
-    character = 'Klee_test_v2_en'
-    character = '蕾'
-    # character = 'Taijian'
     
     import argparse
     parser = argparse.ArgumentParser()
     # server params
     parser.add_argument('--server_url', type=str, default=server_url, help='Server url')
-    parser.add_argument('--character_data_dir', type=str, default='characters', help='Character data dir')
-    parser.add_argument('--character', type=str, default=character, help='Character name')
-    # audio paramters
+    
+    
     parser.add_argument('--voice_trigger', type=bool, default=True, help='Voice trigger')
     # recorder paramters
     ACCESS_KEY = 'hqNqw85hkJRXVjEevwpkreB8n8so3w9JPQ27qnCR5qTH8a3+XnkZTA=='
@@ -94,17 +98,10 @@ if __name__ == '__main__':
     parser.add_argument('--filename', type=str, default=None, help='Audio file name')
     # local record paramters
     parser.add_argument('--min_stream_record_time', type=int, default=0.8, help='Min stream record time, sec')
-    # video paramters
-    parser.add_argument('--player', type=str, 
-                        default=player, 
-                        help='Video player')
-    parser.add_argument('--width', type=int, default=1280, help='Video width')
-    parser.add_argument('--height', type=int, default=720, help='Video height')
-    # emo paramters
-    # emo_dir="ResizedEmoji"
-    # emo_dir=r"G:\WorkSpace\CodeWorkspace\GPT_projects\vits_project\vits-uma-genshin-honkai\ResizedEmoji"
-    parser.add_argument('--emo_enable', type=bool, default=emo_enable, help='Emo enable')
-    parser.add_argument('--emo_dir', type=str, default=emo_dir, help='Emo dir')
+    parser.add_argument('--mircophone_device', type=int, default=mircophone_device, help='Microphone device index')
+    parser.add_argument('--speaker_device', type=int, default=speaker_device, help='Speaker device index')
+    
+    
     # log paramters
     parser.add_argument('--log_file', type=str, default='my.log', help='Log file')
     parser.add_argument('--log_level', type=str, default='INFO', help='Log level')
@@ -116,11 +113,10 @@ if __name__ == '__main__':
     # sort out args and params
     server_args = {
        'server_url': args.server_url,
-       'character_data_dir': args.character_data_dir,
-       'character': args.character,
     }
     
     recorder_args = {
+        'board' : board,
         'access_key': args.access_key,
         'keywords': args.keywords,
         'keyword_paths': args.keyword_paths,
@@ -136,18 +132,8 @@ if __name__ == '__main__':
         'RATE': args.RATE,
         'filename': args.filename,
         'min_stream_record_time': args.min_stream_record_time,
-    }
-    
-    video_args = {
-        'device': args.player,
-        'width': args.width,
-        'height': args.height,
-    }
-    
-    emo_args = {
-        'enable': args.emo_enable,
-        'player': args.player,
-        'emo_dir': args.emo_dir,
+        'input_device_index': args.mircophone_device,
+        'output_device_index': args.speaker_device,
     }
     
     log_args = {
