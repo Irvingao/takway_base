@@ -97,6 +97,10 @@ class BaseAudio:
         self.filename = filename
         assert input!= output, "input and output cannot be the same, \
             but got input={} and output={}.".format(input, output)
+        print("Audio Initialization: ")
+        print(f"CHUNK: {self.CHUNK} \nFORMAT: {self.FORMAT} \n\
+              CHANNELS: {self.CHANNELS} \nRATE: {self.RATE} \n\
+              input_device_index: {input_device_index} \noutput_device_index: {output_device_index}")
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=FORMAT,
                                   channels=CHANNELS,
