@@ -126,7 +126,7 @@ class WebSocketClinet:
         self.shared_waiting = False
         self.shared_lock = threading.Lock()
         self.shared_data_lock = threading.Lock()
-        print("Audio Process starting...")
+        
         # create threads
         threads = [threading.Thread(target=self.hardware_trigger_thread, args=(recorder,))]
         if voice_trigger:
@@ -137,7 +137,6 @@ class WebSocketClinet:
         for thread in threads:
             thread.start()
         self.logger.info("Audio Process started.")
-        print("Audio Process started.")
         
         while True:
             for thread in threads:
@@ -152,7 +151,6 @@ class WebSocketClinet:
             recorder: takway.audio_utils.Recorder, recorder object
         """
         self.logger.info("Hardware trigger thread started.")
-        print("Hardware trigger thread started.")
         
         trgrigger_status = False
         record_chunk_size = recorder.hd_chunk_size
@@ -166,14 +164,14 @@ class WebSocketClinet:
             frames = []
             _total_frames = 0
             
-            print("Waiting for button press...")
+            self.logger.info("Waiting for button press...")
             recorder.wait_for_hardware_pressed()
-            print("Button pressed.")
+            self.logger.info("Button pressed.")
             # stop voice trigger thread
             with self.shared_data_lock:
                 self.shared_waiting = True  # shared_waiting 控制所有线程的待机状态，True表示待机，False表示工作
             
-            print("Start recording...")
+            self.logger.info("Start recording...")
             bg_t = time.time()
             while True:
                 
@@ -186,8 +184,8 @@ class WebSocketClinet:
                 _total_frames += 1
                 
                 if not recorder.is_hardware_pressed:
-                    print("Button released.")
-                    print(f"rlse time: {datetime.now()}")
+                    # print("Button released.")
+                    self.logger.info(f"button rlse time: {datetime.now()}")
                     break
                 
                 stream_reset_status = self.stream_record_process(
@@ -211,8 +209,8 @@ class WebSocketClinet:
                 is_bgn=is_bgn,
                 is_end=True)
             
-            print(f"Tatal frames: {_total_frames*record_chunk_size}, {_total_frames*record_chunk_size/recorder.RATE} sec.")
-            print(f"rcrd time: {datetime.now()}")
+            # print(f"Tatal frames: {_total_frames*record_chunk_size}, {_total_frames*record_chunk_size/recorder.RATE} sec.")
+            # print(f"rcrd time: {datetime.now()}")
             
             with self.shared_data_lock:
                 self.shared_waiting = False # 恢复voice trigger线程工作
@@ -224,9 +222,8 @@ class WebSocketClinet:
             recorder: takway.audio_utils.Recorder, recorder object
         """
         self.logger.info("voice record thread started.")
-        print("voice record thread started.")
         
-        print("Waiting for wake up...")
+        self.logger.info("Waiting for wake up...")
         while True:
             if self.shared_waiting:
                 continue
@@ -250,7 +247,7 @@ class WebSocketClinet:
             buffer_size = recorder.vad_buffer_size
             active_buffer = deque(maxlen=buffer_size)
             bg_t = time.time()
-            print("Start recording...")
+            self.logger.info("Start recording...")
             while True:
                 data = recorder.record_chunk_voice(
                     CHUNK=record_chunk_size, 
@@ -263,7 +260,7 @@ class WebSocketClinet:
                 if is_speech:
                     _frames += 1
                     frames.append(data)
-                    print("add vad frame")
+                    # print("add vad frame")
                 _total_frames += 1
                 full_frames.append(data)
                 
@@ -300,8 +297,8 @@ class WebSocketClinet:
                             min_stream_record_time=recorder.min_stream_record_time,
                             is_bgn=is_bgn,
                             is_end=True)
-                        print(f"Tatal frames: {_total_frames*record_chunk_size}, valid frame: {_frames*record_chunk_size}, valid RATE: {_frames/_total_frames*100:.2f}%, {_frames*record_chunk_size/recorder.RATE} sec.")
-                        print("End recording.")
+                        # print(f"Tatal frames: {_total_frames*record_chunk_size}, valid frame: {_frames*record_chunk_size}, valid RATE: {_frames/_total_frames*100:.2f}%, {_frames*record_chunk_size/recorder.RATE} sec.")
+                        # print("End recording.")
                         break
     
     
@@ -337,7 +334,7 @@ class WebSocketClinet:
                 is_end=is_end)
             self.client_queue.put(('audio', stream_data))
             if is_end:
-                print("put None to client queue.")
+                # print("put None to client queue.")
                 self.client_queue.put(None)
             return True
         else:
@@ -347,13 +344,13 @@ class WebSocketClinet:
         
         client = BaseWebSocketClient(self.server_args['server_url'], self.server_args['session_id'])
         self.logger.info("Web socket client process started.")
-        print("Web socket client process started.")
+        # print("Web socket client process started.")
         
         while True:
             if self.client_queue.empty():
                 continue
             
-            print(f"init skt time: {datetime.now()}")
+            # print(f"init skt time: {datetime.now()}")
             # 唤醒
             client.wakeup_client()
             
@@ -369,21 +366,21 @@ class WebSocketClinet:
                         is_end=audio_dict['is_end'],
                         encoding='base64',
                     )
-                    print(f"send skt time: {datetime.now()}")
-            print(f"fnsh skt time: {datetime.now()}")
+                    # print(f"send skt time: {datetime.now()}")
+            # print(f"fnsh skt time: {datetime.now()}")
                     
             # 接收数据
             while True:
                 response, data_type = client.receive_per_data()
                 if data_type == dict:
-                    print(response)  # 打印接收到的消息
-                    print(f"recv json time: {datetime.now()}")
+                    self.logger.info(response)  # 打印接收到的消息
+                    # print(f"recv json time: {datetime.now()}")
                 elif data_type == bytes:
-                    print(f"recv bytes time: {datetime.now()}")
+                    self.logger.info(f"recv bytes time: {datetime.now()}")
                     self.audio_play_queue.put(('audio_bytes', response))
                 elif data_type == None:
                     break  # 如果没有接收到消息，则退出循环
-            print("接收完毕:", datetime.now())
+            # print("接收完毕:", datetime.now())
             
     def audio_play_process(self):
         '''
@@ -397,13 +394,13 @@ class WebSocketClinet:
             item = self.audio_play_queue.get()
             if item[0] == 'audio_bytes':
                 # 播放音频
-                print("Playing audio...")
+                self.logger.info("Playing audio...")
                 tts_audio = item[1]
-                print(f"play time: {datetime.now()}")
+                self.logger.info(f"play audio time: {datetime.now()}")
                 try:
                     audio_player.play(tts_audio)
                 except TypeError as e:
-                    print(f"audio play error: {e}")
+                    self.logger.info(f"audio play error: {e}")
                     continue
 
 

@@ -198,7 +198,9 @@ class BaseWebSocketClient:
         try:
             recv_data = json.loads(recv_data)
         except json.JSONDecodeError as e:
-            print(f"JSONDecodeError: {e}")
+            # print(f"JSONDecodeError: {e}")
+            # is_end = True
+            pass
         except Exception as e:
             # print(f"receive_per_data error: {e}")
             assert isinstance(recv_data, bytes), ValueError(f"Received data is not bytes, got {type(recv_data)}.")
