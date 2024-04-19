@@ -1,5 +1,5 @@
 from takway.board.base_hd import BaseHardware
-
+import subprocess
 import datetime
 t=0
 last_status = False
