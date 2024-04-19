@@ -35,9 +35,15 @@ class OrangePi(BaseHardware):
                 self.shared_hd_status = keyboard_status
             '''
             self.shared_hd_status = True if subprocess.run(["gpio", "read", str(self.BUTTON_PIN_red)], capture_output=True, text=True).stdout.strip() == '0' else False
-            
+            if self.shared_hd_status:
+                # 打开LED（输出高电平）
+                subprocess.run(["gpio", "write", str(self.LED_PIN_red), "1"])
+            else:
+                # 关闭LED（输出低电平）
+                subprocess.run(["gpio", "write", str(self.LED_PIN_red), "0"])
+
             global t, last_status
-            if t%2 == 0 and not self.shared_hd_status and last_status:
+            if not self.shared_hd_status and last_status:
                 print(f"pres time: {datetime.datetime.now()}")
             last_status = self.shared_hd_status
             t+=1
