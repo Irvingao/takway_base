@@ -5,3 +5,4 @@ keyboard
 websocket-client
 pvporcupine
 requests
+webrtcvad
