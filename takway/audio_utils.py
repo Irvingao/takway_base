@@ -253,6 +253,7 @@ class BaseRecorder(BaseAudio):
 
 class HDRecorder(BaseRecorder):
     def __init__(self, 
+                 board=None,
                  hd_trigger='keyboard', 
                  keyboard_key='space',
                  voice_trigger=True,
@@ -260,7 +261,7 @@ class HDRecorder(BaseRecorder):
                  hd_detect_threshold=50,
                  **kwargs):
         super().__init__(**kwargs)
-        assert hd_trigger in ['keyboard', 'button', 'all']
+        assert hd_trigger in ['keyboard', 'button']
         
         self.hd_trigger = hd_trigger
         self.voice_trigger = voice_trigger
@@ -269,12 +270,16 @@ class HDRecorder(BaseRecorder):
         if hd_chunk_size is None:
             self.hd_chunk_size = self.base_chunk_size
         
-        if hd_trigger == 'keyboard':
+        if board == None:
+            assert hd_trigger == 'keyboard', "board should be `None` if hd_trigger is `keyboard`."
             self.keyboard_key = keyboard_key
             self.hardware = Keyboard(hd_trigger, keyboard_key, hd_detect_threshold)
-        if hd_trigger == 'button':
-            self.hardware = V329(hd_trigger, hd_detect_threshold)
-            self.button = self.hardware.button
+        else:
+            assert hd_trigger == 'button', f"hd_trigger should be `button` if board is `v329` or `orangepi`, but got `{hd_trigger}`."
+            if board == 'v329':
+                self.hardware = V329(hd_trigger, hd_detect_threshold)
+            elif board == 'orangepi':
+                self.hardware = OrangePi(hd_trigger, hd_detect_threshold)
         print(f"Using {hd_trigger} as hardware trigger.")
         
     def wait_for_hardware_pressed(self):
@@ -302,12 +307,11 @@ class HDRecorder(BaseRecorder):
                     break
                     print("Recording stopped.")
             elif self.hd_trigger == 'button':
-                if self.button.get_value() == 0:
-                    if self.get_button_status():
-                        data = self.stream.read(self.CHUNK)
-                        frames.append(data)
-                    else:
-                        break
+                if self.get_button_status():
+                    data = self.stream.read(self.CHUNK)
+                    frames.append(data)
+                else:
+                    break
             else:
                 recording = False
                 raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
