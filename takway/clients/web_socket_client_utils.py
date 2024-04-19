@@ -99,6 +99,7 @@ class WebSocketClinet:
         #     )
         
         for process in processes:
+            time.sleep(0.5)
             process.start()
         for process in processes:
             process.join()
