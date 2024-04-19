@@ -204,13 +204,13 @@ class AudioPlayer(BaseAudio):
         super().__init__(output=True, RATE=RATE, **kwargs)
 
     def play(self, audio_data):
-        print("Playing audio data...")
+        # print("Playing audio data...")
         audio_data = self.check_audio_type(audio_data, return_type=None)
         
         for i in range(0, len(audio_data), self.CHUNK):
             self.stream.write(audio_data[i:i+self.CHUNK])
-            print("Playing audio data...{}/{}".format(i, len(audio_data)))
-        print("Audio data played.")
+            # print("Playing audio data...{}/{}".format(i, len(audio_data)))
+        # print("Audio data played.")
 
     def close(self):
         self.stream.stop_stream()
@@ -234,13 +234,20 @@ class BaseRecorder(BaseAudio):
     def record(self, 
                filename,
                duration=5, 
-               return_type='io'):
-        print("Recording started.")
+               return_type='io',
+               logger=None):
+        if logger is not None:
+            logger.info("Recording started.")
+        else:
+            print("Recording started.")
         frames = []
         for i in range(0, int(self.RATE / self.CHUNK * duration)):
             data = self.stream.read(self.CHUNK, exception_on_overflow=False)
             frames.append(data)
-        print("Recording stopped.")
+        if logger is not None:
+            logger.info("Recording stopped.")
+        else:
+            print("Recording stopped.")
         return self.write_wave(filename, frames, return_type)
 
     def record_chunk_voice(self, 
@@ -320,7 +327,6 @@ class HDRecorder(BaseRecorder):
                 recording = False
                 raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
         return self.write_wave(self.filename, frames, return_type)
-    
     
     '''
     def record(self, return_type='bytes', queue=None):
