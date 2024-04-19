@@ -206,7 +206,8 @@ class AudioPlayer(BaseAudio):
         
         for i in range(0, len(audio_data), self.CHUNK):
             self.stream.write(audio_data[i:i+self.CHUNK])
-        print("Audio data played.")    
+            print("Playing audio data...{}/{}".format(i, len(audio_data)))
+        print("Audio data played.")
 
     def close(self):
         self.stream.stop_stream()
