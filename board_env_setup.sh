@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# 给bashrc添加自启动python脚本
+echo "nohup python3 /home/orangepi/takway_base/ws_client.py& " >> ~/.bashrc
+
+# update system
 sudo -S apt-get update -y << EOF 
 orangepi
 EOF
@@ -14,3 +19,4 @@ pip install -v -e .
 
 pip install -r requirements/board_requirements.txt
 
+reboot
