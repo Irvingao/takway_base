@@ -17,6 +17,7 @@ class OrangePi(BaseHardware):
         self.LED_PIN_blue = 5
         
         self.shared_hd_status_2 = False
+        self.led_set_status_2 = False
         
         self.button_init()
         self.init_hd_thread()
@@ -63,6 +64,9 @@ class OrangePi(BaseHardware):
     def hd_detection_loop_2(self):
         keyboard_status = False
         while True:
+            if self.led_set_status_2:
+                self.set_led2_on()
+                continue
             self.shared_hd_status_2 = True if subprocess.run(["gpio", "read", str(self.BUTTON_PIN_blue)], capture_output=True, text=True).stdout.strip() == '0' else False
             if self.shared_hd_status_2:
                 # 打开LED（输出高电平）
@@ -78,7 +82,9 @@ class OrangePi(BaseHardware):
         subprocess.run(["gpio", "write", str(self.LED_PIN_red), "0"])
     
     def set_led2_on(self):
+        self.led_set_status_2 = True
         subprocess.run(["gpio", "write", str(self.LED_PIN_blue), "1"])
         
     def set_led2_off(self):
+        self.led_set_status_2 = False
         subprocess.run(["gpio", "write", str(self.LED_PIN_blue), "0"])
