@@ -19,4 +19,6 @@ pip install -v -e .
 
 pip install -r requirements/board_requirements.txt
 
+sudo nmcli device wifi connect "Takway-AI" password "takway123"
+
 reboot
