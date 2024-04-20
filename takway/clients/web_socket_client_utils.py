@@ -241,7 +241,7 @@ class WebSocketClinet:
                 continue
             
             if self.board == 'orangepi':
-                recorder.hardware.set_led1_on()
+                recorder.hardware.set_led2_on()
             # wake up
             is_bgn = True
             _frames = 0
@@ -306,7 +306,7 @@ class WebSocketClinet:
                         # print("End recording.")
                         break
             if self.board == 'orangepi':
-                recorder.hardware.set_led1_off()
+                recorder.hardware.set_led2_off()
     
     
     def stream_record_process(self, 
