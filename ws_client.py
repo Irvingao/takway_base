@@ -24,6 +24,7 @@ if __name__ == '__main__':
     elif system == 'Linux':
         # board = 'v329'
         board = 'orangepi'
+        ACCESS_KEY = 'GPFKn+Z9LHGh8yZNfWkLUYRixnrsyY+5w8KN3rpl6sw+Bi7XIqbgTw=='
     
     mircophone_device = None
     speaker_device = None
