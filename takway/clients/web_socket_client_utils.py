@@ -425,9 +425,9 @@ class WebSocketClinet:
                     continue
             else:
                 if item[0] == 'story':
-                    frame = audio_player.load_audio_file(f"/home/orangepi/story_22050/{item[1]}.wav")
+                    audio_data = audio_player.load_audio_file(f"/home/orangepi/story_22050/{item[1]}.wav")
                 elif item[0] == 'music':
-                    frame = audio_player.load_audio_file("/home/orangepi/music_22050/1.wav")
+                    audio_data = audio_player.load_audio_file("/home/orangepi/music_22050/1.wav")
                 # 播放
                 audio_data = audio_player.check_audio_type(audio_data, return_type=None)
         
