@@ -17,7 +17,6 @@ import multiprocessing
 # web request
 import requests
 import pyaudio
-from pydub import AudioSegment
 # hot words detection
 import pvporcupine
 
@@ -421,8 +420,8 @@ class WebSocketClinet:
                 except TypeError as e:
                     print(f"audio play error: {e}")
                     continue
-            elif item[0] == 'story':
-                print(f"{os.path.join('story', item[1])}.mp3")
+            else:
+                print(f"{os.path.join('story', item[1])}.wav")
                 # frame = audio_player.load_audio_file(f"{os.path.join('story', item[1])}.mp3")
                 # audio_player.play(frame)
                 
@@ -431,8 +430,18 @@ class WebSocketClinet:
                 # 播放音频（这需要你的系统配置了可以播放音频的程序）
                 # from pydub.playback import play
                 # play(audio)
-                os.system(f"start path_to_your_mp3_file.mp3")
-
+                if item[0] == 'story':
+                    try:
+                        os.system(f"aplay -D hw:3,0 /home/orangepi/story/{item[1]}.wav")
+                    except Exception as e:
+                        print(f"story play error: {e}")
+                elif item[0] == 'music':
+                    try:
+                        os.system(f"aplay -D hw:3,0 /home/orangepi/music/1.wav")
+                    except Exception as e:
+                        print(f"music play error: {e}")
+                    
+        
 
     def excute_process(self):
         '''
