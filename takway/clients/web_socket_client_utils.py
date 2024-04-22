@@ -91,6 +91,7 @@ class WebSocketClinet:
         self.excute_queue = manager.Queue()
         
         # 多进程标志为
+        self.mircophone_active_set = manager.Event()
         self.speaker_set = manager.Event()
                 
         processes = [
@@ -171,6 +172,7 @@ class WebSocketClinet:
             
             print("Waiting for button press...")
             recorder.wait_for_hardware_pressed()
+            self.mircophone_active_set.set()
             print("Button pressed.")
             # stop voice trigger thread
             with self.shared_data_lock:
@@ -243,6 +245,7 @@ class WebSocketClinet:
             if not recorder.is_wakeup(data):
                 continue
             
+            self.mircophone_active_set.set()
             if self.board == 'orangepi':
                 recorder.hardware.set_led2_on()
             # wake up
@@ -421,12 +424,23 @@ class WebSocketClinet:
                     print(f"audio play error: {e}")
                     continue
             else:
-                
                 if item[0] == 'story':
                     frame = audio_player.load_audio_file(f"/home/orangepi/story_22050/{item[1]}.wav")
                 elif item[0] == 'music':
                     frame = audio_player.load_audio_file("/home/orangepi/music_22050/1.wav")
-                audio_player.play(frame)
+                # 播放
+                audio_data = audio_player.check_audio_type(audio_data, return_type=None)
+        
+                time.sleep(0.5)
+                for i in range(0, len(audio_data), audio_player.CHUNK):
+                    audio_player.stream.write(audio_data[i:i+audio_player.CHUNK])
+                    print("Playing {} data...{}/{}".format(item[0], i, len(audio_data)))
+                    if self.mircophone_active_set.is_set():
+                        print("mirophone is active.")
+                        break
+                    
+                audio_player.stream.write(audio_data[i+audio_player.CHUNK:])
+                print(f"{item[0]} data played.")
                 
                 '''
                 audio_player.close()
