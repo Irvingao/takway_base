@@ -421,15 +421,14 @@ class WebSocketClinet:
                     print(f"audio play error: {e}")
                     continue
             else:
-                print(f"{os.path.join('story', item[1])}.wav")
-                # frame = audio_player.load_audio_file(f"{os.path.join('story', item[1])}.mp3")
-                # audio_player.play(frame)
                 
-                # 加载 MP3 文件
-                # audio = AudioSegment.from_mp3(f"{os.path.join('story', item[1])}.mp3")
-                # 播放音频（这需要你的系统配置了可以播放音频的程序）
-                # from pydub.playback import play
-                # play(audio)
+                if item[0] == 'story':
+                    frame = audio_player.load_audio_file(f"/home/orangepi/story_22050/{item[1]}.wav")
+                elif item[0] == 'music':
+                    frame = audio_player.load_audio_file("/home/orangepi/music_22050/1.wav")
+                audio_player.play(frame)
+                
+                '''
                 audio_player.close()
                 if item[0] == 'story':
                     try:
@@ -441,7 +440,20 @@ class WebSocketClinet:
                         os.system(f"aplay -D hw:3,0 /home/orangepi/music/1.wav")
                     except Exception as e:
                         print(f"music play error: {e}")
-                    
+                    # 使用subprocess.Popen执行命令，而不是os.system
+                    process = subprocess.Popen(['aplay', '-D', 'hw:3,0', f'/home/orangepi/story/{item[1]}.wav'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    # 此时process.pid将包含命令的PID
+                    print(f"The PID of the executed command is: {process.pid}")
+                    while True:
+                        # ... 执行一些操作 ...
+                        if subprocess.run(["gpio", "read", str(8)], capture_output=True, text=True).stdout.strip() == '0':
+                            # 如果需要终止进程，可以使用terminate()方法
+                            process.terminate()
+                            print("Process terminated.")
+                            break
+                        time.sleep(0.1)
+                audio_player.init_audio_player(False, True, )
+                '''
         
 
     def excute_process(self):
