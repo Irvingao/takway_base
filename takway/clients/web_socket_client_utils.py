@@ -1,5 +1,7 @@
 # basic
 import io
+import os
+import sys
 import time
 import json
 import random
@@ -15,6 +17,7 @@ import multiprocessing
 # web request
 import requests
 import pyaudio
+from pydub import AudioSegment
 # hot words detection
 import pvporcupine
 
@@ -86,19 +89,20 @@ class WebSocketClinet:
         self.trigger_queue = manager.Queue()
         self.client_queue = manager.Queue()
         self.audio_play_queue = manager.Queue()
-        self.excute_display_queue = manager.Queue()
+        self.excute_queue = manager.Queue()
         
-        self.share_time_dict = manager.dict()
-        
+        # 多进程标志为
+        self.speaker_set = manager.Event()
+                
         processes = [
             multiprocessing.Process(target=self.audio_process),
             multiprocessing.Process(target=self.web_socket_client_process),
             multiprocessing.Process(target=self.audio_play_process),
         ]
-        # if self.excute_args.pop('enable'):
-        #     processes.append(
-        #         multiprocessing.Process(target=self.excute_display_process, args=(self.excute_display_queue,)),
-        #     )
+        if self.excute_args.pop('enable'):
+            processes.append(
+                multiprocessing.Process(target=self.excute_process),
+            )
         
         for process in processes:
             time.sleep(0.5)
@@ -381,6 +385,13 @@ class WebSocketClinet:
                 response, data_type = client.receive_per_data()
                 if data_type == dict:
                     print(response)  # 打印接收到的消息
+                    try:
+                        response = json.loads(response['msg'])
+                        if 'content' in response.keys():
+                            self.excute_queue.put((response['instruct'], response['content']))
+                    except json.JSONDecodeError as e:
+                        print(f"json decode error: {e}")
+                        continue
                     # print(f"recv json time: {datetime.now()}")
                 elif data_type == bytes:
                     # print(f"recv bytes time: {datetime.now()}")
@@ -406,15 +417,42 @@ class WebSocketClinet:
                 print(f"play audio time: {datetime.now()}")
                 try:
                     audio_player.play(tts_audio)
+                    self.speaker_set.set()
                 except TypeError as e:
                     print(f"audio play error: {e}")
                     continue
+            elif item[0] == 'story':
+                print(f"{os.path.join('story', item[1])}.mp3")
+                # frame = audio_player.load_audio_file(f"{os.path.join('story', item[1])}.mp3")
+                # audio_player.play(frame)
+                
+                # 加载 MP3 文件
+                # audio = AudioSegment.from_mp3(f"{os.path.join('story', item[1])}.mp3")
+                # 播放音频（这需要你的系统配置了可以播放音频的程序）
+                # from pydub.playback import play
+                # play(audio)
+                os.system(f"start path_to_your_mp3_file.mp3")
 
 
-    def excute_display_process(self, excute_display_queue):
+    def excute_process(self):
         '''
         Args:
-            excute_display_queue: multiprocessing.Queue, excute display queue
+            excute_queue: multiprocessing.Queue, excute display queue
         '''
-        print("excute display process not used.")
+        print("Excute process started.")
         
+        while True:
+            if self.excute_queue.empty():
+                continue
+            
+            if self.speaker_set.is_set():
+                instruct, content = self.excute_queue.get()
+                
+                print(f"Got speaker info: {instruct, content}")
+                
+                print(f"Playing {instruct} {content}...")
+                print(f"play {instruct} time: {datetime.now()}")
+                self.audio_play_queue.put((instruct, content))
+
+                self.speaker_set.clear()
+                

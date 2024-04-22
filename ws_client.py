@@ -8,9 +8,12 @@ if __name__ == '__main__':
     
     # server_url = 'ws://121.41.224.27:8000/chat'
     # server_url = 'ws://39.107.254.69:33089/chat'
-    server_url = 'ws://114.214.236.207:7878/chat/streaming'
+    server_url = 'wss://takway-ai.kingtous.cn/chat/streaming'
+    # server_url = 'ws://114.214.236.207:7878/chat/streaming'
     
-    session_id = 'd343970d-cd81-4abc-b99a-413e3dcc9fd2'
+    session_id = 'b5923335-a0dd-4d50-b3bf-5ce2a50894ed'
+    
+    excute_args = {'enable': True}
     
     ACCESS_KEY = 'hqNqw85hkJRXVjEevwpkreB8n8so3w9JPQ27qnCR5qTH8a3+XnkZTA=='
     
@@ -167,5 +170,6 @@ if __name__ == '__main__':
         server_args=server_args, 
         recorder_args=recorder_args, 
         player_args=player_args,
+        excute_args=excute_args,
         log_args=log_args)
     localclient.process_init()
