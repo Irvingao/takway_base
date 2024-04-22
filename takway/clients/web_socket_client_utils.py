@@ -430,6 +430,7 @@ class WebSocketClinet:
                 # 播放音频（这需要你的系统配置了可以播放音频的程序）
                 # from pydub.playback import play
                 # play(audio)
+                audio_player.close()
                 if item[0] == 'story':
                     try:
                         os.system(f"aplay -D hw:3,0 /home/orangepi/story/{item[1]}.wav")
