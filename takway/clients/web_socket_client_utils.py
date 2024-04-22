@@ -91,8 +91,8 @@ class WebSocketClinet:
         self.excute_queue = manager.Queue()
         
         # 多进程标志为
-        self.mircophone_active_set = manager.Event()
-        self.speaker_set = manager.Event()
+        self.mircophone_free_set = manager.Event()
+        self.speaker_active_set = manager.Event()
                 
         processes = [
             multiprocessing.Process(target=self.audio_process),
@@ -171,8 +171,9 @@ class WebSocketClinet:
             _total_frames = 0
             
             print("Waiting for button press...")
+            self.mircophone_free_set.set()
             recorder.wait_for_hardware_pressed()
-            self.mircophone_active_set.set()
+            self.mircophone_free_set.clear()
             print("Button pressed.")
             # stop voice trigger thread
             with self.shared_data_lock:
@@ -242,10 +243,11 @@ class WebSocketClinet:
             
             record_chunk_size = recorder.vad_chunk_size
             
+            self.mircophone_free_set.set()
             if not recorder.is_wakeup(data):
                 continue
+            self.mircophone_free_set.clear()
             
-            self.mircophone_active_set.set()
             if self.board == 'orangepi':
                 recorder.hardware.set_led2_on()
             # wake up
@@ -418,8 +420,18 @@ class WebSocketClinet:
                 tts_audio = item[1]
                 print(f"play audio time: {datetime.now()}")
                 try:
-                    audio_player.play(tts_audio)
-                    self.speaker_set.set()
+                    # 播放
+                    self.speaker_active_set.set()
+                    tts_audio = audio_player.check_audio_type(tts_audio, return_type=None)
+                    for i in range(0, len(tts_audio), audio_player.CHUNK):
+                        audio_player.stream.write(tts_audio[i:i+audio_player.CHUNK])
+                        print("Playing {} data...{}/{}".format(item[0], i, len(tts_audio)))
+                        if self.mircophone_free_set.is_set():
+                            continue
+                        else:
+                            print("mirophone is active.")
+                            self.mircophone_free_set.wait()
+                            break
                 except TypeError as e:
                     print(f"audio play error: {e}")
                     continue
@@ -429,14 +441,17 @@ class WebSocketClinet:
                 elif item[0] == 'music':
                     audio_data = audio_player.load_audio_file("/home/orangepi/music_22050/1.wav")
                 # 播放
+                self.speaker_active_set.set()
                 audio_data = audio_player.check_audio_type(audio_data, return_type=None)
-        
                 time.sleep(0.5)
                 for i in range(0, len(audio_data), audio_player.CHUNK):
                     audio_player.stream.write(audio_data[i:i+audio_player.CHUNK])
                     print("Playing {} data...{}/{}".format(item[0], i, len(audio_data)))
-                    if self.mircophone_active_set.is_set():
+                    if self.mircophone_free_set.is_set():
+                        continue
+                    else:
                         print("mirophone is active.")
+                        self.mircophone_free_set.wait()
                         break
                     
                 audio_player.stream.write(audio_data[i+audio_player.CHUNK:])
@@ -481,7 +496,7 @@ class WebSocketClinet:
             if self.excute_queue.empty():
                 continue
             
-            if self.speaker_set.is_set():
+            if self.speaker_active_set.is_set():
                 instruct, content = self.excute_queue.get()
                 
                 print(f"Got speaker info: {instruct, content}")
@@ -490,5 +505,5 @@ class WebSocketClinet:
                 print(f"play {instruct} time: {datetime.now()}")
                 self.audio_play_queue.put((instruct, content))
 
-                self.speaker_set.clear()
+                self.speaker_active_set.clear()
                 
