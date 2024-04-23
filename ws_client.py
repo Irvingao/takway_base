@@ -12,8 +12,11 @@ if __name__ == '__main__':
     # server_url = 'ws://114.214.236.207:7878/chat/streaming'
     
     session_id = 'b5923335-a0dd-4d50-b3bf-5ce2a50894ed'
+    session_id = '28445e6d-e8c1-46a6-b980-fbf39b918def' # 鸭
     
-    excute_args = {'enable': True}
+    
+    excute_args = {}
+    # excute_args = {'enable': True}
     
     ACCESS_KEY = 'hqNqw85hkJRXVjEevwpkreB8n8so3w9JPQ27qnCR5qTH8a3+XnkZTA=='
     
@@ -115,7 +118,7 @@ if __name__ == '__main__':
     parser.add_argument('--OUT_FORMAT', type=int, default=16, help='Player audio format')
     parser.add_argument('--OUT_CHANNELS', type=int, default=1, help='Player audio channels')
     parser.add_argument('--OUT_filename', type=str, default=None, help='Player audio file name')
-    parser.add_argument('--OUT_frames_per_buffer', type=int, default=11025, help='Player frames per buffer')
+    parser.add_argument('--OUT_frames_per_buffer', type=int, default=512, help='Player frames per buffer')
     
     # log paramters
     parser.add_argument('--log_file', type=str, default='ws_client.log', help='Log file')

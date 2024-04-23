@@ -91,7 +91,7 @@ class WebSocketClinet:
         self.excute_queue = manager.Queue()
         
         # 多进程标志为
-        self.mircophone_free_set = manager.Event()
+        self.mircophone_active_set = manager.Event()
         self.speaker_active_set = manager.Event()
                 
         processes = [
@@ -99,7 +99,7 @@ class WebSocketClinet:
             multiprocessing.Process(target=self.web_socket_client_process),
             multiprocessing.Process(target=self.audio_play_process),
         ]
-        if self.excute_args.pop('enable'):
+        if self.excute_args.get('enable', False):
             processes.append(
                 multiprocessing.Process(target=self.excute_process),
             )
@@ -170,11 +170,11 @@ class WebSocketClinet:
             frames = []
             _total_frames = 0
             
+            self.mircophone_active_set.clear()
             print("Waiting for button press...")
-            self.mircophone_free_set.set()
             recorder.wait_for_hardware_pressed()
-            self.mircophone_free_set.clear()
             print("Button pressed.")
+            self.mircophone_active_set.set()
             # stop voice trigger thread
             with self.shared_data_lock:
                 self.shared_waiting = True  # shared_waiting 控制所有线程的待机状态，True表示待机，False表示工作
@@ -243,13 +243,13 @@ class WebSocketClinet:
             
             record_chunk_size = recorder.vad_chunk_size
             
-            self.mircophone_free_set.set()
+            self.mircophone_active_set.clear()
             if not recorder.is_wakeup(data):
                 continue
-            self.mircophone_free_set.clear()
             
             if self.board == 'orangepi':
                 recorder.hardware.set_led2_on()
+            self.mircophone_active_set.set()
             # wake up
             is_bgn = True
             _frames = 0
@@ -426,12 +426,12 @@ class WebSocketClinet:
                     for i in range(0, len(tts_audio), audio_player.CHUNK):
                         audio_player.stream.write(tts_audio[i:i+audio_player.CHUNK])
                         print("Playing {} data...{}/{}".format(item[0], i, len(tts_audio)))
-                        if self.mircophone_free_set.is_set():
-                            continue
-                        else:
+                        if self.mircophone_active_set.is_set():
                             print("mirophone is active.")
-                            self.mircophone_free_set.wait()
+                            self.mircophone_active_set.wait()
                             break
+                    audio_player.stream.write(tts_audio[i+audio_player.CHUNK:])
+                    print(f"audio data played.")
                 except TypeError as e:
                     print(f"audio play error: {e}")
                     continue
@@ -447,15 +447,17 @@ class WebSocketClinet:
                 for i in range(0, len(audio_data), audio_player.CHUNK):
                     audio_player.stream.write(audio_data[i:i+audio_player.CHUNK])
                     print("Playing {} data...{}/{}".format(item[0], i, len(audio_data)))
-                    if self.mircophone_free_set.is_set():
-                        continue
-                    else:
+                    if self.mircophone_active_set.is_set():
+                        audio_player.close()
+                        print("Reinit audio player.")
                         print("mirophone is active.")
-                        self.mircophone_free_set.wait()
+                        self.mircophone_active_set.wait()
+                        time.sleep(0.5)
+                        audio_player = AudioPlayer(**self.player_args)
                         break
                     
-                audio_player.stream.write(audio_data[i+audio_player.CHUNK:])
-                print(f"{item[0]} data played.")
+                # audio_player.stream.write(audio_data[i+audio_player.CHUNK:])
+                # print(f"{item[0]} data played.")
                 
                 '''
                 audio_player.close()
