@@ -13,7 +13,7 @@ class BaseHardware:
     def init_hd_thread(self):
         hd_thread = threading.Thread(target=self.hd_detection_loop)
         hd_thread.start()
-        hd_thread.join()
+        # hd_thread.join()
         print("HD detection thread started.")
         
     def hd_detection_loop(self):
@@ -27,6 +27,6 @@ class BaseHardware:
         print("Waiting for hardware trigger.")
         while True:
             if self.is_hardware_pressed:
-                time.sleep(0.1)
+                time.sleep(0.01)
                 break
         return True

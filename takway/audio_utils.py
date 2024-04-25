@@ -2,7 +2,6 @@ import io
 import os
 import time
 import pyaudio
-import librosa
 import wave
 import json
 import warnings
@@ -32,21 +31,14 @@ def play_audio(audio_data, type='base64'):
     stream.close()
     p.terminate()
 
-
+'''
+import librosa
 def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
-    '''
-    Args:
-        audio: numpy.ndarray or tuple, (sr_original, audio_data), original audio data
-        sr_target: int, target sample rate
-
-    return:
-        audio_data_resampled: numpy.ndarray, reshaped audio data with target sample rate
-    '''
     # 获取原始采样率和音频数据
     if isinstance(audio, tuple):
         sr_original, audio_data = audio
-    else:
-        audio_data = audio
+    elif isinstance(audio, bytes):
+        audio_data = np.frombuffer(audio, dtype=np.int16)
     assert sr_original is not None, f"sr_original should be provided if audio is a \
         numpy.ndarray, but got sr_original `{sr_original}`."
     
@@ -64,7 +56,22 @@ def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
     if audio_data_resampled.dtype == np.dtype('float32'):
         audio_data_resampled = np.int16(audio_data_resampled * np.iinfo(np.int16).max)
     
+    # If the input was bytes, return the resampled data as bytes
+    if isinstance(audio, bytes):
+        audio_data_resampled = audio_data_resampled.tobytes()
+        
     return audio_data_resampled
+
+# Example usage:
+# If your audio data is in bytes:
+# audio_bytes = b'...'  # Your audio data as bytes
+# audio_data_resampled = reshape_sample_rate(audio_bytes)
+
+# If your audio data is in numpy int16:
+# audio_int16 = np.array([...], dtype=np.int16)  # Your audio data as numpy int16
+# audio_data_resampled = reshape_sample_rate(audio_int16)
+'''
+
 
 
 # ####################################################### #
@@ -73,13 +80,16 @@ def reshape_sample_rate(audio, sr_original=None, sr_target=16000):
 
 class BaseAudio:
     def __init__(self, 
+                 filename=None, 
                  input=False, 
                  output=False, 
-                 CHUNK=2048, 
+                 CHUNK=1024, 
                  FORMAT=pyaudio.paInt16, 
                  CHANNELS=1, 
                  RATE=16000,
-                 filename=None):
+                 input_device_index=None,
+                 output_device_index=None,
+                 **kwargs):
         self.CHUNK = CHUNK
         self.FORMAT = FORMAT
         self.CHANNELS = CHANNELS
@@ -87,13 +97,19 @@ class BaseAudio:
         self.filename = filename
         assert input!= output, "input and output cannot be the same, \
             but got input={} and output={}.".format(input, output)
+        print("------------------------------------------")
+        print(f"{'Input' if input else 'Output'} Audio Initialization: ")
+        print(f"CHUNK: {self.CHUNK} \nFORMAT: {self.FORMAT} \nCHANNELS: {self.CHANNELS} \nRATE: {self.RATE} \ninput_device_index: {input_device_index} \noutput_device_index: {output_device_index}")
+        print("------------------------------------------")
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=FORMAT,
                                   channels=CHANNELS,
                                   rate=RATE,
                                   input=input,
                                   output=output,
-                                  frames_per_buffer=CHUNK)
+                                  input_device_index=input_device_index,
+                                  output_device_index=output_device_index,
+                                  **kwargs)
     
     def load_audio_file(self, wav_file):
         with wave.open(wav_file, 'rb') as wf:
@@ -153,8 +169,16 @@ class BaseAudio:
 
     
     def write_wave_io(self, filename, frames):
-        """Write audio data to a file-like object."""
+        """
+        Write audio data to a file-like object.
+        
+        Args:
+            filename: [string or file-like object], file path or file-like object to write
+            frames: list of bytes, audio data to write
+        """
         wf = wave.open(filename, 'wb')
+        
+        # 设置WAV文件的参数
         wf.setnchannels(self.CHANNELS)
         wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
         wf.setframerate(self.RATE)
@@ -180,12 +204,15 @@ class AudioPlayer(BaseAudio):
         super().__init__(output=True, RATE=RATE, **kwargs)
 
     def play(self, audio_data):
-        print("Playing audio data...")
+        # print("Playing audio data...")
         audio_data = self.check_audio_type(audio_data, return_type=None)
         
         for i in range(0, len(audio_data), self.CHUNK):
             self.stream.write(audio_data[i:i+self.CHUNK])
-        print("Audio data played.")    
+            print("Playing audio data...{}/{}".format(i, len(audio_data)))
+        self.stream.write(audio_data[i+self.CHUNK:])
+        # print("Audio data played.")
+        
 
     def close(self):
         self.stream.stop_stream()
@@ -198,20 +225,31 @@ class AudioPlayer(BaseAudio):
 class BaseRecorder(BaseAudio):
     def __init__(self, 
                  input=True, 
+                 base_chunk_size=None, 
                  RATE=16000, 
                  **kwargs):
         super().__init__(input=input, RATE=RATE, **kwargs)
+        self.base_chunk_size = base_chunk_size
+        if base_chunk_size is None:
+            self.base_chunk_size = self.CHUNK
 
     def record(self, 
                filename,
                duration=5, 
-               return_type='io'):
-        print("Recording started.")
+               return_type='io',
+               logger=None):
+        if logger is not None:
+            logger.info("Recording started.")
+        else:
+            print("Recording started.")
         frames = []
         for i in range(0, int(self.RATE / self.CHUNK * duration)):
-            data = self.stream.read(self.CHUNK)
+            data = self.stream.read(self.CHUNK, exception_on_overflow=False)
             frames.append(data)
-        print("Recording stopped.")
+        if logger is not None:
+            logger.info("Recording stopped.")
+        else:
+            print("Recording stopped.")
         return self.write_wave(filename, frames, return_type)
 
     def record_chunk_voice(self, 
@@ -228,25 +266,33 @@ class BaseRecorder(BaseAudio):
 
 class HDRecorder(BaseRecorder):
     def __init__(self, 
+                 board=None,
                  hd_trigger='keyboard', 
                  keyboard_key='space',
                  voice_trigger=True,
-                 hd_chunk_size=2048,
+                 hd_chunk_size=None,
                  hd_detect_threshold=50,
                  **kwargs):
         super().__init__(**kwargs)
-        assert hd_trigger in ['keyboard', 'button', 'all']
+        assert hd_trigger in ['keyboard', 'button']
         
         self.hd_trigger = hd_trigger
         self.voice_trigger = voice_trigger
-        self.hd_chunk_size = hd_chunk_size
         
-        if hd_trigger == 'keyboard':
+        self.hd_chunk_size = hd_chunk_size
+        if hd_chunk_size is None:
+            self.hd_chunk_size = self.base_chunk_size
+        
+        if board == None:
+            assert hd_trigger == 'keyboard', "board should be `None` if hd_trigger is `keyboard`."
             self.keyboard_key = keyboard_key
             self.hardware = Keyboard(hd_trigger, keyboard_key, hd_detect_threshold)
-        if hd_trigger == 'button':
-            self.hardware = V329(hd_trigger, hd_detect_threshold)
-            self.button = self.hardware.button
+        else:
+            assert hd_trigger == 'button', f"hd_trigger should be `button` if board is `v329` or `orangepi`, but got `{hd_trigger}`."
+            if board == 'v329':
+                self.hardware = V329(hd_trigger, hd_detect_threshold)
+            elif board == 'orangepi':
+                self.hardware = OrangePi(hd_trigger, hd_detect_threshold)
         print(f"Using {hd_trigger} as hardware trigger.")
         
     def wait_for_hardware_pressed(self):
@@ -274,12 +320,11 @@ class HDRecorder(BaseRecorder):
                     break
                     print("Recording stopped.")
             elif self.hd_trigger == 'button':
-                if self.button.get_value() == 0:
-                    if self.get_button_status():
-                        data = self.stream.read(self.CHUNK)
-                        frames.append(data)
-                    else:
-                        break
+                if self.get_button_status():
+                    data = self.stream.read(self.CHUNK)
+                    frames.append(data)
+                else:
+                    break
             else:
                 recording = False
                 raise ValueError("hd_trigger should be 'keyboard' or 'button'.")
@@ -440,6 +485,7 @@ class PicovoiceRecorder(VADRecorder):
                  sensitivities=0.5, 
                  library_path=None,
                  **kwargs):
+        
         super().__init__(**kwargs)
         
         pico_cfg = dict(
