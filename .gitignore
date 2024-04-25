@@ -380,10 +380,17 @@ monotonic_align/core.c
 /dist
 Gao/
 .idea
-
+g2pw.onnx
+model-00001-of-00002.safetensors
+model-00002-of-00002.safetensors
 
 # custom
 vits_model
+bert_vits_model
+/bert
+takway.egg-info
+.github
+*.noarch.rpm
 model/*.pth
 vosk-model-*
 whisper*
