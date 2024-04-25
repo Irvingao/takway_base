@@ -8,7 +8,7 @@ from takway.board.base_hd import BaseHardware
 
 if "gpiod" in sys.modules:
     # sipeed MaixSense V329
-    import gpiod
+    import gpiod as gpio
 else:
     # 如果所有库都不存在，执行默认操作或抛出异常
     # raise ImportError("gpiod package is not available.")

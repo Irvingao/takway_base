@@ -1,0 +1,6 @@
+--2024-04-19 18:34:13--  https://modelscope.cn/api/v1/models/qwen/Qwen1.5-4B-Chat/repo?Revision=master
+正在解析主机 modelscope.cn (modelscope.cn)... 39.101.130.40
+正在连接 modelscope.cn (modelscope.cn)|39.101.130.40|:443... 已连接。
+已发出 HTTP 请求，正在等待回应... 400 Bad Request
+2024-04-19 18:34:13 错误 400：Bad Request。
+
